@@ -36,21 +36,35 @@ that matters most.
 Not measured: **A–K on `prism-ml/bonsai-27b` or `zai-org/glm-4.6v-flash`** (the latter cannot
 tool-call at all, see its result file).
 
+**`ai21labs/AI21-Jamba2-3B` is downloaded and loads its FULL declared window**, 2026-08-08 — the
+first model here whose loaded context equals its declared one: **262 144 loaded, 3 342 MiB of VRAM**.
+Predicted from `config.json` before the download (two attention layers out of 28, one KV head → about
+0.26 GiB of cache at 256k) and confirmed by the load. Tool use is claimed by AI21 and **not yet
+measured**. `results/ai21labs-jamba2-3b.md` has the numbers and the reproduction.
+
 ## The queue, in order
 
-1. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
+1. **Measure `ai21labs_ai21-jamba2-3b`, G first, then A–K, then L.** It loads 262 144 in 3.3 GB, so
+   it is the only candidate on this box that could work at 256k — but **a window that loads is not a
+   window it can reason across**, and that gap is the whole reason probe G exists (`lfm2.5-2.6b`
+   loads 128 000 and comprehends 84 707). Run `./find-window.py --model ai21labs_ai21-jamba2-3b`
+   first, because everything else is worth less if the usable window is 40k. Then A–K, watching **F**:
+   tool use is documented by AI21 and unmeasured here, and `zai-org/glm-4.6v-flash` is the precedent
+   for a model that cannot finish a tool-calling turn at all.
+
+2. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
    runner rather than the model: it returned as soon as `isRunning` went false, which is before the
    final text commits, so every answer landed against the following question. Fixed — but the fix is
    unproven, and C is the probe the whole kit exists for.
 
-2. **The two questions the rules exist to answer, and they are one run.** Does the model call
+3. **The two questions the rules exist to answer, and they are one run.** Does the model call
    `load_skill("regles-agent")` before working on a repository, unprompted — the instruction is
    deliberately unconditional — and once loaded, does it quote the skill or invent it? The second has
    a computed key: ask for the `git add -A` rule, which is in `SKILL.md` and **not** in the system
    prompt, and for a branch-naming rule, which is in neither. Inventing the second is the failure
    that matters.
 
-3. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
+4. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
    `qwen3.5-9b-deepseek-v4-flash`, once with OpenFox's global instructions in place and once cleared:
 
    ```bash
@@ -67,17 +81,17 @@ tool-call at all, see its result file).
    instructions are decoration and belong in the skill instead — a finding worth more than a green
    run.
 
-4. **Probe K with RTK toggled, now that one half is measured.** With RTK on, `lfm2.5-2.6b` answered
+5. **Probe K with RTK toggled, now that one half is measured.** With RTK on, `lfm2.5-2.6b` answered
    205 against a true 17 587. What is missing is the same probe with the toggle **off**: the gap
    between the two answers is what the filter costs in correctness, against the tokens it saves. A
    model that gives the same number both times is one that counted instead of reading.
 
-5. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
+6. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
    limit — loaded context 126 720, run stopped at 64 000. But it took 317 s at 32 000 where the 9 B
    takes 45 s, so what decides whether it is usable is tokens per second at a fixed context. Measure
    that first. **It also JIT-loads at 8.6 GiB** when anything addresses it, so unload it afterwards.
 
-6. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
+7. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
    three arithmetic questions with exact answers: a yaw-rotated box's AABB, a triangle's unit normal
    and area, a silhouette width. **It exists because the point of this kit is a `.catz` shape genre
    that does not exist yet**, and a model that cannot normalise a cross product cannot author or
@@ -86,13 +100,13 @@ tool-call at all, see its result file).
    whether the small end of the range is usable for geometry content at all. Record whether the
    answer was computed, tool-called, or asserted; the third is untrustworthy even when right.
 
-7. **The long-context candidates, and what has to be checked before downloading any of them.**
+8. **The long-context candidates, and what has to be checked before downloading any of them.**
    The shortlist below came from a chat answer, so **treat every line as a claim until the repo says
    it**: the trap is a plausible spec for a model that does not exist under that name.
 
    | Candidate | Status of the claim | What decides it here |
    |---|---|---|
-   | `ai21labs/AI21-Jamba2-3B` | **Verified**: 256k context, tool use documented (`--tool-call-parser hermes` in its own quickstart), Apache 2.0. `config.json` read: **28 layers, attention period 14 offset 7 — so 2 attention layers**, 1 KV head, head_dim 128 | **KV cache at 262 144 tokens is ~0.26 GiB.** Weights ~1.9 GB at Q4. It would sit in about 2.5 GB of a 12 GB card *with its whole declared window*, which no dense model here can do. **The open question is a GGUF: llama.cpp carries a `jamba` arch and AI21 publish GGUF for other family members, but a Jamba2-3B GGUF was not confirmed.** Check that first — `lms get` on a safetensors-only repo fails |
+   | `ai21labs/AI21-Jamba2-3B` | **DOWNLOADED AND LOADED** — the GGUF question is answered: `bartowski/ai21labs_AI21-Jamba2-3B-GGUF`, Q4_K_M, 1.86 GB. See item 1 and `results/ai21labs-jamba2-3b.md` | **Loaded 262 144 = declared, 3 342 MiB of VRAM**, matching the 0.26 GiB cache predicted from `config.json`. Only its honesty and its tool use are still unmeasured |
    | `Qwen/Qwen3-30B-A3B-Instruct-2507` | **Verified**: 262 144 native, 30.5 B total / 3.3 B active, 128 experts 8 active, 48 layers, 4 KV heads, strong tool calling | **Does not fit this box at its window.** MoE saves compute, not memory: all 30.5 B of weights must be resident (~18 GB at Q4) and the KV cache is a dense 48-layer one, ~96 KiB/token — **24 GiB at 256k, 12 GiB at 128k**. Against 12 GB of VRAM and 31 GB of RAM, 18 + 12 is the whole machine. Worth measuring only at a short window, and then it is competing with the 9 B that already scores 10 of 11 |
    | "Ministral 3 3B Instruct, 256k" | **Unverified — and the number is suspect.** Mistral's published Ministral 3B is a 128k model | Find the actual repo before planning a run. If the 256k variant does not exist, this line is a hallucinated spec and should be deleted rather than carried |
    | `amd/Instella-3B-Long-Instruct` | **Unverified** | Same: confirm the repo, the context, and whether it tool-calls at all before it costs a download |
@@ -101,7 +115,7 @@ tool-call at all, see its result file).
    download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
    it is the one worth the check.
 
-8. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
+9. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
    scores 8/1/2 and loads its full 128 000. Its measured gap is **comprehension**, not window: it
    uses 66.2 % of what it loads, where the 9 B uses 99.7 %. Fine-tuning changes behaviour — refusal
    phrasing, tool discipline, format adherence — and **a fine-tune does not extend the window it can
@@ -109,7 +123,7 @@ tool-call at all, see its result file).
    the probes it fails on behaviour, and the wrong one for the 84 707 ceiling. Probe L (item 6) says
    whether the arithmetic is there to build on before any of this is worth doing.
 
-9. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
+10. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
    another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
    loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
    records the machine for exactly this reason.
