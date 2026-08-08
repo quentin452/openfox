@@ -61,6 +61,20 @@ Then open a **fresh session** on the agent under test, pointed at the same repos
 probes one at a time in the order they are written. The order matters: probe C only works as the
 first thing you ask about that file, and probe J only works if enough turns have passed.
 
+**Or drive it from the terminal**, which is the same thing without a browser:
+
+```bash
+./run-probe.py --repo /path/to/target/repo --model zai-org/glm-4.6v-flash "<probe text>"
+./run-probe.py --session <id> "<follow-up>"       # probe C's second question, probe J
+```
+
+It opens a fresh session per run unless `--session` says otherwise, pins the model (and refuses one
+the provider does not offer, rather than measuring a silent fallback), prints what LM Studio has
+**loaded** at that moment, and prints the **tool calls** as well as the answer — probes A, C, E and F
+are graded on whether a tool ran at all, so a runner that showed only the final text would score the
+same failure as a pass. `--mode planner` is the read-only agent: it has `read_file`, `run_command`
+and `load_skill` but cannot write, which is what you want pointed at a repository you care about.
+
 Do not paste the answer key into the session. That sounds obvious and it is the easiest mistake to
 make when copying blocks around.
 

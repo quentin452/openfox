@@ -41,6 +41,31 @@ Within **351 tokens** of qwen's usable window, from a completely different decla
 models whose settings pages disagree by 131 072 tokens end up a rounding error apart in practice,
 which is the whole argument for measuring rather than reading.
 
+## ⛔ It cannot complete a tool-calling turn, so the other probes have no answer
+
+**Measured 2026-08-08.** Asked for a fact about a file — probe A, the simplest thing the kit does —
+it emits the **same tool call over and over until `max_tokens`**, and OpenFox never dispatches any of
+them.
+
+| Where | What happened |
+|---|---|
+| OpenFox, builder mode, probe A | **63** queued tool-call fragments — `read_file` ×30, `run_command` ×30 — none dispatched. Killed at 12 min |
+| OpenFox, planner mode, a work request | **25** × `call_sub_agent`, none dispatched, 600 s client timeout |
+| LM Studio direct, one tool, `temperature 0` and `0.7`, 8 runs | **3 of 8** returned the same `read_file` 6–10× and stopped at `max_tokens`. The other 5 returned exactly one |
+| `repeat_penalty 1.1` | no effect — one of the looping runs had it on |
+| **Control: `qwen3.5-9b-deepseek-v4-flash`, same request, 4 runs** | **4/4 exactly one call.** So this is the model, not the harness and not the tool schema |
+
+**What this costs the measurement, said plainly:** probes A–F and H–K are graded on what the agent
+does with a tool, and this model's tool calls do not arrive. Its window is the best of the three
+measured here and it is unusable as an agent until either the loop stops or a consumer dedupes
+identical calls. **Nothing is recorded below as a pass or a fail** — a probe that never ran is not a
+probe the model failed, which is the same distinction §G draws between a refusal, a failure and a
+timeout.
+
+Two mitigations exist and neither has been applied here: capping `defaultMaxTokens` so a looped turn
+ends in seconds rather than hanging, and dedup of identical consecutive tool calls in the consumer.
+The second is a change to OpenFox itself.
+
 ## Other probes
 
-Not yet run. See `../PROBES.md`.
+Not run, and see the section above for why — not for lack of trying. See `../PROBES.md`.

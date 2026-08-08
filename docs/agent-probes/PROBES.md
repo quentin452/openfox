@@ -98,11 +98,19 @@ answered correctly. That happened on the first real run of this probe, within an
 being written. One line does it:
 
 ```bash
-grep -m1 '^The marker is: ' needle-64000.txt | cut -d' ' -f5
+grep -m1 '^The marker is: ' needle-64000.txt | cut -d' ' -f4
 ```
 
-Run it at each depth the key generated, smallest first, and stop at the first failure. **The last
-depth that passes is the usable window**, whatever the client's settings page says.
+**The ladder is the manual form. `./find-window.py --model <id>` is the measurement.** A ladder
+answers a coarser question than anybody has: *passed 64 000, refused 128 000* is a bracket **64 000
+tokens wide**, and the rungs below the edge only re-confirm what the rung before them said. The
+script starts at the ceiling the backend actually loaded — read from a resident model, never assumed
+— and halves what is left unknown, so it lands within ±500 tokens in about eight requests. It
+generates and checks the marker in-process, which removes the retyping failure below entirely.
+
+Run the ladder by hand at each depth the key generated, smallest first, and stop at the first
+failure. **The last depth that passes is the usable window**, whatever the client's settings page
+says.
 
 **Two things the first real run taught, both of which change how you read the number.**
 
@@ -125,8 +133,8 @@ competing with the model for it. Write the toggle's state in the result table be
 or the table says something it did not measure.
 
 *And bisect.* The ladder's rungs are far apart, so "passed 64k, refused 128k" is a bracket, not a
-measurement. If you need the real edge, bisect between the last pass and the first failure —
-generating a needle at an arbitrary depth is one line of the generator.
+measurement. This is what `find-window.py` was written to do, and it is why the ladder is no longer
+the recommended form.
 
 This probe tests the whole chain, not the model: a stored per-model context override in the client,
 a KV cache setting, or a truncation policy will all show up here as a window smaller than the one
