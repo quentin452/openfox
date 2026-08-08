@@ -23,7 +23,11 @@ if (currentHeap < MIN_HEAP_MB && !process.env['OPENFOX_HEAP_INCREASED']) {
     ['--max-old-space-size=' + heapMB, ...process.execArgv, scriptPath, ...process.argv.slice(2)],
     { stdio: 'inherit', env: env as Record<string, string>, windowsHide: true },
   )
-  process.exit(result.status ?? 0)
+  if (result.signal) {
+    process.kill(process.pid, result.signal)
+  } else {
+    process.exit(result.status ?? 0)
+  }
 }
 
 import { runCli } from './main.js'

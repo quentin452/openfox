@@ -3253,6 +3253,46 @@ export async function createServerHandle(config: Config): Promise<ServerHandle> 
 }
 
 /**
+ * Sets up SIGINT/SIGTERM handlers for graceful server shutdown.
+ * Re-raises the signal after closing handles so parent processes/shells recognize signal termination.
+ */
+export function setupSignalShutdown(
+  handle: { close: () => Promise<void> },
+  proc: Pick<NodeJS.Process, 'on' | 'removeListener' | 'kill' | 'exit' | 'pid'> = process,
+): { shutdown: (signal: NodeJS.Signals) => Promise<void> } {
+  const shutdown = async (signal: NodeJS.Signals) => {
+    // Force exit after 3 seconds if graceful shutdown hangs
+    const forceExitTimer = setTimeout(() => {
+      logger.warn('Forcing exit after timeout')
+      proc.exit(1)
+    }, 3000)
+    forceExitTimer.unref?.()
+
+    await handle.close()
+    proc.removeListener('SIGINT', sigintListener)
+    proc.removeListener('SIGTERM', sigtermListener)
+    proc.kill(proc.pid, signal)
+  }
+
+  const sigintListener = () => {
+    shutdown('SIGINT').catch((err) => {
+      logger.error('Error during SIGINT shutdown', { error: err instanceof Error ? err.message : String(err) })
+    })
+  }
+
+  const sigtermListener = () => {
+    shutdown('SIGTERM').catch((err) => {
+      logger.error('Error during SIGTERM shutdown', { error: err instanceof Error ? err.message : String(err) })
+    })
+  }
+
+  proc.on('SIGINT', sigintListener)
+  proc.on('SIGTERM', sigtermListener)
+
+  return { shutdown }
+}
+
+/**
  * Create and start a server (convenience function for CLI).
  * Starts listening immediately on the configured port.
  * Sets up SIGINT/SIGTERM handlers.
@@ -3261,18 +3301,6 @@ export async function createServer(config: Config): Promise<void> {
   const handle = await createServerHandle(config)
   await handle.start()
 
-  // Graceful shutdown with force exit timeout
-  const shutdown = () => {
-    // Force exit after 3 seconds if graceful shutdown hangs
-    const forceExitTimer = setTimeout(() => {
-      logger.warn('Forcing exit after timeout')
-      process.exit(1)
-    }, 3000)
-    forceExitTimer.unref() // Don't keep process alive just for this timer
-
-    handle.close().then(() => process.exit(0))
-  }
-
   // Prevent crash on unhandled promise rejections — log and continue
   process.on('unhandledRejection', (reason) => {
     const errorInfo =
@@ -3280,6 +3308,5 @@ export async function createServer(config: Config): Promise<void> {
     logger.error('Unhandled promise rejection', errorInfo)
   })
 
-  process.on('SIGINT', shutdown)
-  process.on('SIGTERM', shutdown)
+  setupSignalShutdown(handle)
 }
