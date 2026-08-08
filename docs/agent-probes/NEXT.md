@@ -77,7 +77,39 @@ tool-call at all, see its result file).
    takes 45 s, so what decides whether it is usable is tokens per second at a fixed context. Measure
    that first. **It also JIT-loads at 8.6 GiB** when anything addresses it, so unload it afterwards.
 
-6. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
+6. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
+   three arithmetic questions with exact answers: a yaw-rotated box's AABB, a triangle's unit normal
+   and area, a silhouette width. **It exists because the point of this kit is a `.catz` shape genre
+   that does not exist yet**, and a model that cannot normalise a cross product cannot author or
+   review a parametric solid however honest it is. Cheap — no repository, no window, no tools
+   needed — so it runs on `lfm2.5-2.6b` and `qwen3.5-9b-deepseek-v4-flash` in minutes and says
+   whether the small end of the range is usable for geometry content at all. Record whether the
+   answer was computed, tool-called, or asserted; the third is untrustworthy even when right.
+
+7. **The long-context candidates, and what has to be checked before downloading any of them.**
+   The shortlist below came from a chat answer, so **treat every line as a claim until the repo says
+   it**: the trap is a plausible spec for a model that does not exist under that name.
+
+   | Candidate | Status of the claim | What decides it here |
+   |---|---|---|
+   | `ai21labs/AI21-Jamba2-3B` | **Verified**: 256k context, tool use documented (`--tool-call-parser hermes` in its own quickstart), Apache 2.0. `config.json` read: **28 layers, attention period 14 offset 7 — so 2 attention layers**, 1 KV head, head_dim 128 | **KV cache at 262 144 tokens is ~0.26 GiB.** Weights ~1.9 GB at Q4. It would sit in about 2.5 GB of a 12 GB card *with its whole declared window*, which no dense model here can do. **The open question is a GGUF: llama.cpp carries a `jamba` arch and AI21 publish GGUF for other family members, but a Jamba2-3B GGUF was not confirmed.** Check that first — `lms get` on a safetensors-only repo fails |
+   | `Qwen/Qwen3-30B-A3B-Instruct-2507` | **Verified**: 262 144 native, 30.5 B total / 3.3 B active, 128 experts 8 active, 48 layers, 4 KV heads, strong tool calling | **Does not fit this box at its window.** MoE saves compute, not memory: all 30.5 B of weights must be resident (~18 GB at Q4) and the KV cache is a dense 48-layer one, ~96 KiB/token — **24 GiB at 256k, 12 GiB at 128k**. Against 12 GB of VRAM and 31 GB of RAM, 18 + 12 is the whole machine. Worth measuring only at a short window, and then it is competing with the 9 B that already scores 10 of 11 |
+   | "Ministral 3 3B Instruct, 256k" | **Unverified — and the number is suspect.** Mistral's published Ministral 3B is a 128k model | Find the actual repo before planning a run. If the 256k variant does not exist, this line is a hallucinated spec and should be deleted rather than carried |
+   | `amd/Instella-3B-Long-Instruct` | **Unverified** | Same: confirm the repo, the context, and whether it tool-calls at all before it costs a download |
+
+   **The order that wastes the least: confirm the GGUF, compute the cache from `config.json`, then
+   download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
+   it is the one worth the check.
+
+8. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
+   scores 8/1/2 and loads its full 128 000. Its measured gap is **comprehension**, not window: it
+   uses 66.2 % of what it loads, where the 9 B uses 99.7 %. Fine-tuning changes behaviour — refusal
+   phrasing, tool discipline, format adherence — and **a fine-tune does not extend the window it can
+   actually reason across**; that is architecture and training length. So it is the right lever for
+   the probes it fails on behaviour, and the wrong one for the 84 707 ceiling. Probe L (item 6) says
+   whether the arithmetic is there to build on before any of this is worth doing.
+
+9. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
    another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
    loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
    records the machine for exactly this reason.
