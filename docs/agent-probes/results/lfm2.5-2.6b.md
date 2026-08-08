@@ -38,6 +38,19 @@ unknown. Nine requests, about four minutes.
 
 **Usable window: 84 707 tokens**, of 128 000 declared and loaded — **66.2 %**.
 
+**Re-run 2026-08-08 with the `MANGLED` grader: the same nine depths, the same nine verdicts, the
+same 84 707.** The queue expected this number to move up, on the reasoning that had corrected
+`ai21-jamba-reasoning-3b` by 24 % — its WRONG depths predated `MANGLED`, so a marker returned in the
+wrong case would have been scored a comprehension failure. **It did not move, because this model
+never mangled one**: zero `MANGLED` verdicts in the whole run. The 84 707 was never a grading
+artefact, and the prediction was wrong for a reason worth keeping — the correction applies to a model
+that returns the marker differently, not to every model whose run predates the fix.
+
+**The bisect is deterministic and this is the first evidence of it.** Two runs days apart, different
+timings (3.2 s against 21.9 s at 250 880, the model being cold), identical depths and identical
+verdicts. A kit whose stated worry is producing a wrong number now has one measurement it has seen
+twice.
+
 **It is the first model here whose window is limited by the model rather than by the card.** The
 other three were capped by what LM Studio could fit; this one loads its whole declared context with
 10 GiB to spare and still stops finding the marker at two thirds of it. A bigger card would not move

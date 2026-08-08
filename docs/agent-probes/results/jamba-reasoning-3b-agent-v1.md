@@ -14,10 +14,15 @@ learn what was trained was to run it. That is what this file records.
 
 ## The finding in one line
 
-**Someone trained long context and wrote "Agent" on the box.** The usable window goes up **5.2×**
+**Someone trained long context and wrote "Agent" on the box.** The usable window goes up **4.2×**
 against its base; every agent behaviour the probes test is unchanged or worse.
 
-## Probe G — 85 452 usable tokens against the base's 16 403
+**The multiplier was 5.2× until 2026-08-08**, when the base was re-measured with the `MANGLED`
+grader and its window rose from 16 403 to 20 309. The ratio moved because the DENOMINATOR was
+wrong, not this model's number — which is the argument for keeping a comparison's two halves in
+files that name each other rather than in a figure somebody wrote down once.
+
+## Probe G — 85 452 usable tokens against the base's 20 309
 
 ```
   1,027,604 chars  REFUSED      never read     0.8s  HTTP 400
