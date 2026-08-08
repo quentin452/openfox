@@ -9,10 +9,10 @@ layers alternating `sliding_attention` / `full_attention`, `hidden_size` 2880, `
 heads, 4 experts per token, `max_position_embeddings` 131 072, YaRN factor 32 from an
 `initial_context_length` of 4096 — with exactly two differences:
 
-* `num_local_experts` is **12**, where the parent has 32.
-* There is **no `quantization_config`**: the weights are bf16, where the parent ships MXFP4.
+- `num_local_experts` is **12**, where the parent has 32.
+- There is **no `quantization_config`**: the weights are bf16, where the parent ships MXFP4.
 
-The card calls it *"a fine-tuned Mixture of Experts"* and never says pruned. LM Studio labels it
+The card calls it _"a fine-tuned Mixture of Experts"_ and never says pruned. LM Studio labels it
 **`12x2.4B`**, which is the same reading arrived at independently. Its own GGUFs are published, so
 the usual hunt for a `-GGUF` sibling does not apply: `gpt-oss-9b-q4_k_m.gguf` is 6.83 GB, `q8_0`
 9.55 GB, `bf16` 17.95 GB. Card claims no benchmark; its "Limitations" are boilerplate.
@@ -33,7 +33,7 @@ size that might be worth using.
 
 ## Throughput: three cells, because two would have proved nothing
 
-`PROBES.md` lists *"comparing configurations while claiming to compare models"* among the five ways
+`PROBES.md` lists _"comparing configurations while claiming to compare models"_ among the five ways
 this kit has already produced a wrong number. Comparing nano-on-GPU against 20b-spilling changes the
 model **and** the placement at once, so a third cell holds the placement fixed and varies only the
 model.
@@ -42,11 +42,11 @@ Prompt processing and generation are reported apart because they degrade differe
 compute-bound, the second memory-bandwidth-bound, and weights living in system RAM wreck the second
 while barely touching the first. One blended figure would hide exactly that.
 
-| Cell | Model | Offload | Loaded ctx | 6 833 prompt tok | 27 114 prompt tok |
-| --- | --- | --- | --- | --- | --- |
-| **A** | nano 9B | `--gpu max` | 131 072 | ttft 3.34 s · **68.9 tok/s** | ttft 10.94 s · **62.9 tok/s** |
-| **B** | nano 9B | `--gpu 0.6` | 32 768 | ttft 7.33 s · **15.8 tok/s** | ttft 22.33 s · **10.7 tok/s** |
-| **C** | gpt-oss-20b | `--gpu 0.6` | 32 768 | ttft 8.60 s · **19.1 tok/s** | ttft 24.87 s · **12.7 tok/s** |
+| Cell  | Model       | Offload     | Loaded ctx | 6 833 prompt tok             | 27 114 prompt tok             |
+| ----- | ----------- | ----------- | ---------- | ---------------------------- | ----------------------------- |
+| **A** | nano 9B     | `--gpu max` | 131 072    | ttft 3.34 s · **68.9 tok/s** | ttft 10.94 s · **62.9 tok/s** |
+| **B** | nano 9B     | `--gpu 0.6` | 32 768     | ttft 7.33 s · **15.8 tok/s** | ttft 22.33 s · **10.7 tok/s** |
+| **C** | gpt-oss-20b | `--gpu 0.6` | 32 768     | ttft 8.60 s · **19.1 tok/s** | ttft 24.87 s · **12.7 tok/s** |
 
 **The finding is B against C: the 9 B model in partial offload is SLOWER than the 21 B model in the
 same partial offload.** Holding the model constant and moving from full to partial costs **4.4×**
@@ -55,10 +55,10 @@ nothing — the larger model is 20 % faster.
 
 **So it is the spill that costs, not the size.** `gpt-oss-20b` is not slow here because it is a 21 B;
 it is slow because this card cannot hold it. On a 16 GB card it would plausibly run at cell A's
-numbers, and the verdict against it is *"not on this machine"* rather than *"not this model"*.
+numbers, and the verdict against it is _"not on this machine"_ rather than _"not this model"_.
 
 **The confound runs against the conclusion, which is why it is reported rather than hidden.** Cell A
-was loaded at 131 072 and B and C at 32 768 — A had the *larger* context and is still four times
+was loaded at 131 072 and B and C at 32 768 — A had the _larger_ context and is still four times
 faster. B against C is matched setting for setting.
 
 **Generation degrades with depth only when weights are off the card**: nano loses 9 % between the two
@@ -91,26 +91,26 @@ The ceiling rung passed on the first request, so the bisect had no space left to
 **The prior this file carried was REFUTED, and that is worth more than the number.** 131 072 is YaRN
 **32× from a 4096 native window**, and every note here said to expect the declared-versus-usable gap
 that produces. There is none. An extension that aggressive holding across its whole range is the
-first counter-example this kit has to *"a big declared window is a claim"*.
+first counter-example this kit has to _"a big declared window is a claim"_.
 
 ### The first run said 28.1 %, and the grader was wrong twice in one day
 
-| Run | Grader | Output cap | Usable |
-| --- | --- | --- | --- |
-| first | exact, then case-insensitive | 1024 | **36 807** — 28.1 % |
-| second | + index/depth pair, dashes folded | 4096 | **118 431** — all of it |
+| Run    | Grader                            | Output cap | Usable                  |
+| ------ | --------------------------------- | ---------- | ----------------------- |
+| first  | exact, then case-insensitive      | 1024       | **36 807** — 28.1 %     |
+| second | + index/depth pair, dashes folded | 4096       | **118 431** — all of it |
 
 **A 3.2× correction, from two independent defects that both under-measure:**
 
-* **The word `NEEDLE` was being graded, and it carries no information.** What identifies a needle is
+- **The word `NEEDLE` was being graded, and it carries no information.** What identifies a needle is
   `-{index}-{chars}`, and `chars` is the prompt's own length — a model cannot produce it without
   having read the line. This model returned `NEDEL‑1‑513802`: right index, right depth, letters
   dropped from the constant, and **ASCII hyphens replaced by U+2011 NON-BREAKING HYPHEN** (confirmed
   by codepoint, not by eye). Graded whole that is WRONG; graded on what it means it is a read at the
-  ceiling. `MANGLED` had been widened this same morning for the *case* version of exactly this, on
+  ceiling. `MANGLED` had been widened this same morning for the _case_ version of exactly this, on
   `ai21-jamba-reasoning-3b`, and it cost 24 % there.
-* **Four rungs of ten came back `TRUNCATED` at a 1024 cap** — *"output cap reached before it said
-  anything"*. `gpt-oss` reasons before answering, so it spent the cap on thinking. That verdict
+- **Four rungs of ten came back `TRUNCATED` at a 1024 cap** — _"output cap reached before it said
+  anything"_. `gpt-oss` reasons before answering, so it spent the cap on thinking. That verdict
   measures the runner, which is why the script keeps it apart from the model's failures; the fix is
   `--max-tokens 4096`, and the setting is recorded here beside the number rather than assumed.
 
@@ -120,6 +120,38 @@ Every wrong-looking answer had the **right index and the right depth**. What it 
 constant it was asked to echo. **A model that corrupts a string it has just read will corrupt a
 filename, a commit hash or a line number**, and none of those has an index/depth pair to fall back
 on. Probe G cannot see that as a failure; A–K is where it would show.
+
+## Is the transcription damage QUANTISATION? No — measured 2026-08-08
+
+One variable, `q8_0` against `q4_k_m`, run twice:
+
+```
+gpt-oss-nano@q8_0: declared 131,072, LOADED 40,960  [q8_0, --gpu max, 40960]
+
+    160,563 chars  MANGLED    36579 tokens    24.5s  'NEDELE-1-160563'
+    160,563 chars  MANGLED    36579 tokens     5.7s  'NEDELE-1-160563'
+```
+
+**It mangles at 36 579 tokens, and Q4_K_M returned that constant CLEANLY at 36 807** — a rung
+_deeper_. So the eight-bit weights do not fix the corruption; they meet it earlier. **The fault is
+post-training, and the lever is a fine-tune rather than a file format.** Under the hybrid ruling it
+also does not need fixing to be worked around: a harness that never asks the model to photocopy a
+string deletes this failure mode outright.
+
+**The two runs are byte-identical in verdict AND in the corrupted string**, 24.5 s apart in latency
+because a `cargo` build was running during the second. That is the second piece of evidence that the
+bisect is deterministic, and the first that the _corruption itself_ is — a resampling artefact would
+have produced two different manglings.
+
+**What is NOT isolated, and the file should not claim it is.** Q4's mangle at its own ceiling was
+`NEDEL‑1‑513802`: letters **dropped** and ASCII hyphens replaced by U+2011. Q8's is `NEDELE`:
+letters **transposed**, hyphens intact. Those are different shapes — but they were measured at
+118 431 tokens and 36 579 tokens respectively, so depth is confounded with quantisation and neither
+shape can be attributed to the weights. What the comparison supports is the presence of damage at a
+common depth, which is the question that was asked.
+
+**Loading note:** `-c 40960` was chosen so the 8.89 GiB of weights plus 0.94 GiB of cache leave the
+card margin; `--gpu max` does not fall back to a partial split and kills the server instead.
 
 ## What is still NOT measured
 
@@ -138,13 +170,13 @@ the CatzEngine corpus, walked by `catz-gates::roundtrip`, and taken out again. T
 `FORMAT.md` §7 read out of the document plus the palette's ink names — **9 078 characters, about
 2 269 tokens**, which is the whole context this task needs and a thirtieth of what the model loads.
 
-| Tier | | |
-| --- | --- | --- |
-| parses | **ok** | the lexer accepted it |
-| resolves | **ok** | every word it wrote exists in the declaration table |
-| reads | **NO** | `argument 2 is not a group — a point is written in parentheses, as (x,y,z,r)` |
-| prints | **ok** | byte-identical on the round trip — the format's founding contract (§1.4) |
-| gated | NO | the corpus does not pass with it in |
+| Tier     |        |                                                                               |
+| -------- | ------ | ----------------------------------------------------------------------------- |
+| parses   | **ok** | the lexer accepted it                                                         |
+| resolves | **ok** | every word it wrote exists in the declaration table                           |
+| reads    | **NO** | `argument 2 is not a group — a point is written in parentheses, as (x,y,z,r)` |
+| prints   | **ok** | byte-identical on the round trip — the format's founding contract (§1.4)      |
+| gated    | NO     | the corpus does not pass with it in                                           |
 
 **Three of five, failing on one rule of shape.** It wrote `spine (0,0,0,1) stone`: one parenthesised
 point where a spine is a CHAIN and needs two or more, and a bare `stone` where the ink is a named

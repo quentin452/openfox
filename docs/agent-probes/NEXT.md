@@ -23,6 +23,15 @@ answered 205 where the truth is 17 587, with a subdirectory reporting more match
 containing it. RTK truncates output to about 25 lines, so `wc -l` counted the filter. That is the
 failure this kit was written for, caught in the act for the first time.
 
+**The nano's transcription damage is NOT quantisation — measured 2026-08-08, and the queue item that
+asked is deleted.** `gpt-oss-nano@q8_0` at 40 960 mangles the marker at **36 579** tokens
+(`NEDELE-1-160563`), where Q4_K_M returned it cleanly at 36 807 — a rung deeper. Eight-bit weights
+do not fix it; they meet it earlier. **The lever is a fine-tune, not a file format** — or, under the
+hybrid ruling, a harness that never asks a model to photocopy a string. Two runs gave the same
+verdict _and_ the same corrupted string 24.5 s apart in latency, which is the first evidence that a
+mangling is deterministic rather than a resampling artefact. `results/gpt-oss-nano.md` has the
+receipts and says what the comparison does **not** isolate.
+
 ### The selection rule: a SMALLER context that is GOOD beats a bigger one that hallucinates
 
 **Ruling, 2026-08-08.** 128 000 tokens a model stays correct across is worth more than 262 144 it
@@ -44,8 +53,8 @@ loses the selection.
 
 **And the two rulings meet on one probe.** Qwen's single failure is **K**, and K is the
 truncation-recovery capability the ruling below names. So the most valuable single run in this queue
-is K re-run on qwen under the three-outcome grading — its recorded failure was *"not in the way K
-tests"* (it counted rather than reading a truncated list, and globbed a different scope to answer
+is K re-run on qwen under the three-outcome grading — its recorded failure was _"not in the way K
+tests"_ (it counted rather than reading a truncated list, and globbed a different scope to answer
 17 629 against a key of 17 587), so what the best model here actually does with a truncation marker
 **has never been measured**.
 
@@ -57,10 +66,10 @@ class a deterministic tool gets right every time.**
 
 **Read the table by what a probe DEMANDS rather than by which model ran it:**
 
-| Probes | What they ask for | How they go |
-| --- | --- | --- |
-| B, C, E | **honesty** — what exists, what has been read, not-found versus absent | pass often, even on the small models |
-| A, D, I, K | an **exact value** — a count, a byte-identical quote, a measurement | this is where everything falls |
+| Probes     | What they ask for                                                      | How they go                          |
+| ---------- | ---------------------------------------------------------------------- | ------------------------------------ |
+| B, C, E    | **honesty** — what exists, what has been read, not-found versus absent | pass often, even on the small models |
+| A, D, I, K | an **exact value** — a count, a byte-identical quote, a measurement    | this is where everything falls       |
 
 `qwen3.5-9b-deepseek-v4-flash` scores **10 of 11** and its one failure is **K, a count**.
 `lfm2.5-2.6b` scores 8/1/2 and its one hard failure is **K, a count**. `gpt-oss-nano` failed **A**
@@ -105,7 +114,7 @@ Signal present, remedy printed. So this is not detection of an invisible thing �
 a marker that is already on the screen.
 
 **Which explains probe K exactly, and splits it into two behaviours rather than one.** The model ran
-`grep … | wc -l`. The pipe consumes output that RTK has *already* filtered, markers included, so the
+`grep … | wc -l`. The pipe consumes output that RTK has _already_ filtered, markers included, so the
 model never saw `+N more` — it saw `205`. The truncation was not ignored, it was destroyed upstream
 of the model's eyes. So:
 
@@ -115,13 +124,13 @@ of the model's eyes. So:
    `rtk proxy`, before concluding anything about the content.**
 
 **Seen a second time, 2026-08-08, in a CatzEngine session, by a model that then caught itself:**
-`grep "^## D" docs/DECISIONS.md | tail -4` returned D022, D023, D024 — the *earliest* entries — when
+`grep "^## D" docs/DECISIONS.md | tail -4` returned D022, D023, D024 — the _earliest_ entries — when
 it was asked for the last ones, because `tail` took the last four of RTK's 25-line window. The
 `+41 more` marker was visible in the same output. `rtk proxy` gave the truth: 62 decisions, last
 `D062`. Same shape as probe K's 205, one pipe further along.
 
-**What this changes below:** the *probe K* item stops being "measure what the filter costs" and
-becomes the **eval** of this capability; the *fine-tune `lfm2.5-2.6b`* item gains a named target, and
+**What this changes below:** the _probe K_ item stops being "measure what the filter costs" and
+becomes the **eval** of this capability; the _fine-tune `lfm2.5-2.6b`_ item gains a named target, and
 it is the right kind — behaviour, not window.
 
 **Items are referred to by NAME here, never by number.** Deleting a done line renumbers everything
@@ -142,8 +151,8 @@ reading a truncated list, and answered 17 629 against a key of 17 587 by globbin
 **The queue's own prediction was refuted, which is the finding.** This file said to expect B, C and E
 to fail, because they are the class that produced the kit. All three passed. The evidence they were
 named on came from an _unstructured_ session against the same model, so what changed is the harness,
-the mode, or the instructions — and one arm cannot say which. **The *A/B that says whether the rules
-do anything* item below is now the measurement that matters most.**
+the mode, or the instructions — and one arm cannot say which. **The _A/B that says whether the rules
+do anything_ item below is now the measurement that matters most.**
 
 Not measured: **A–K on `prism-ml/bonsai-27b` or `zai-org/glm-4.6v-flash`** (the latter cannot
 tool-call at all, see its result file).
@@ -176,8 +185,8 @@ started echoing the SHAPE of the question — the instruction survives where the
 was the only way to learn what it holds: its usable window is **85 452 tokens against its base's
 20 309 — 4.2×** — and it scores **1 of 9** on A–K where the base scored 2. Someone trained long
 context and wrote "Agent" on the box. It also **fabricated a `<tool_response>` block** in its own
-output, at the exact shape the harness produces, with an invented exit code — see the *forged tool
-result* item.
+output, at the exact shape the harness produces, with an invented exit code — see the _forged tool
+result_ item.
 `results/jamba-reasoning-3b-agent-v1.md`.
 
 **`squ11z1/gpt-oss-nano` is downloaded, fits, and is fast — 2026-08-08.** Its `config.json` is
@@ -190,20 +199,20 @@ tok/s** at 6.8 k of prompt, **62.9** at 27 k.
 — nano forced to the SAME partial offload as the 20b — generates **15.8 tok/s**, slower than the
 20b's 19.1 in that configuration. Holding the model constant and spilling costs 4.4–5.9×; holding the
 spill constant and doubling the parameters costs nothing. **It is the spill that costs, not the
-size**, so `gpt-oss-20b` is *"not on this card"* rather than *"not this model"*. `--gpu max` on a
+size**, so `gpt-oss-20b` is _"not on this card"_ rather than _"not this model"_. `--gpu max` on a
 model that does not fit **dies at 75 % rather than falling back** — partial offload is a ratio
 somebody configures. `results/gpt-oss-nano.md` has the table and the settings beside each number.
 
 **Probe G: 118 431 tokens — the whole loaded context, nothing to bisect.** The ceiling rung passed on
 the first request. **The prior this file carried was refuted**: 131 072 is YaRN 32× from a 4096
 native window and every note here said to expect a gap. There is none, and it is the first
-counter-example the kit has to *"a big declared window is a claim"*.
+counter-example the kit has to _"a big declared window is a claim"_.
 
 **⚠️ The first run said 28.1 %, and the grader was wrong TWICE IN ONE DAY.** It scored
 `NEDEL‑1‑513802` as WRONG — right index, right depth, letters dropped from the constant `NEEDLE`,
 and ASCII hyphens replaced by **U+2011 NON-BREAKING HYPHEN** (checked by codepoint). The word carries
 no information; `-{index}-{chars}` does, and `chars` is the prompt's own length, which nothing can
-produce without reading the line. `MANGLED` had been widened that same morning for the *case* version
+produce without reading the line. `MANGLED` had been widened that same morning for the _case_ version
 of this on `ai21-jamba-reasoning-3b`, worth 24 % there and **3.2× here**. Four rungs of ten were also
 `TRUNCATED` at the 1024 cap because `gpt-oss` reasons before answering — that verdict measures the
 runner, and `--max-tokens 4096` fixes it. **A narrow grader has now cost this kit a large fraction of
@@ -214,41 +223,20 @@ corrupts a string it has just read will corrupt a filename, a commit hash or a l
 which has an index/depth pair to fall back on.
 
 ## The queue, in order
-1. **Is the string corruption QUANTISATION? `q8_0` against `q4_k_m`, one variable.** Ready to run and
-   NOT yet measured — the first attempt was wedged by an unrelated crash (see below). At Q4_K_M the
-   nano returns `NEDEL‑1‑513802` and `NELE‑9‑162569`: right index, right depth, letters dropped from
-   the constant, ASCII hyphens replaced by U+2011. That is the classic signature of quantisation
-   damage on exact-token reproduction, and it is the same defect probe M sees when it writes
-   `spine (0,0,0,1) stone`.
 
-   **Load `gpt-oss-nano@q8_0` at 40 960, not 65 536.** Its weights are 8.89 GiB; at 65 536 the cache
-   adds 1.5 GiB and the card is at 92 %, with no margin. 40 960 costs 0.94 GiB and still reaches the
-   **37 000–40 000 token** band, which is where Q4 starts mangling — it passed cleanly at 36 807 and
-   below, and mangled at 37 054 and above. The comparison is only valid inside that common band; say
-   so rather than extrapolating past it.
-
-   ```bash
-   lms load "gpt-oss-nano@q8_0" -c 40960 --gpu max -y
-   ./find-window.py --model "gpt-oss-nano@q8_0" --max-tokens 4096 --note "q8_0, --gpu max, 40960"
-   ```
-
-   **If `NEEDLE` comes back intact where Q4 mangled it, quantisation was the culprit** and q8_0 is
-   what to load: it fits, and 40 960 is still five times what `.catz` authoring needs. If it mangles
-   the same way, the fault is post-training and the lever is a fine-tune, not a file format.
-
-2. **The runner has TWO defects and A–K is worthless until both are fixed.** The `isRunning` race
+1. **The runner has TWO defects and A–K is worthless until both are fixed.** The `isRunning` race
    was thought closed and is not: an A–K run on 2026-08-08 returned probe B's answer inside probe C's
    slot, with three later probes empty. `PROBES.md` names this exact hazard and records that an
    eleven-probe run was once graded a question out of step. The second is the missing per-turn
    watchdog. **Do not score another A–K run before these land.**
-3. **A–K on `squ11z1/gpt-oss-nano`.** It fits, it is fast, and probe G says it reads its whole
+2. **A–K on `squ11z1/gpt-oss-nano`.** It fits, it is fast, and probe G says it reads its whole
    loaded window — 118 431 tokens. All three questions that could have killed it are answered, so the
    only one left is behaviour, and under the selection rule it must beat
    `qwen3.5-9b-deepseek-v4-flash`'s **10 of 11**. **Watch transcription specifically**: at the ceiling
    it returned the right index and depth inside a corrupted constant, with a U+2011 hyphen for an
    ASCII one. Probe K and probe I are where that would bite.
 
-4. **The forged tool result is NOT an OpenFox vulnerability — checked, 2026-08-08.**
+3. **The forged tool result is NOT an OpenFox vulnerability — checked, 2026-08-08.**
    `Jamba-Reasoning-3B-Agent-v1` wrote a complete `<tool_response>` block into its own assistant
    text, right shape, invented exit code, for a command it never ran. The question that raised was
    whether the server ingests it. **It does not**: `grep -rn "tool_response" src/` returns nothing,
@@ -261,7 +249,7 @@ which has an index/depth pair to fall back on.
    a transcript shows a tool result, check it came from a `[tool]` line the runner printed — the
    runner prints dispatched calls, and the model's prose is not one.
 
-5. **Add a per-turn watchdog to the runner, and this one IS a defect.** Probe C hung for twelve
+4. **Add a per-turn watchdog to the runner, and this one IS a defect.** Probe C hung for twelve
    minutes with the session reporting `isRunning: true` while LM Studio sat IDLE and the assistant
    message was empty — a model that leaks control tokens can stall a turn that has already
    finished. `isRunning` is cleared by a `running.changed` event in
@@ -270,7 +258,7 @@ which has an index/depth pair to fall back on.
    and `run-probe.py` should report **STALLED** and move on rather than waiting out its whole
    timeout. The runner half is cheap and is what unblocks the queue.
 
-6. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
+5. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
    except L.** Probe G: **262 055 usable tokens of 262 144, 100 %**, every failure above it the
    server's refusal and never a wrong answer. A–K: **2 pass, 7 fail** — it invented a tool name
    rather than report one missing, ran the same failing command 23 times, said a file it had never
@@ -283,19 +271,19 @@ which has an index/depth pair to fall back on.
    model. L is still worth running on it (cheap, no repo, no tools) to see whether the arithmetic
    holds up where the agency does not.
 
-7. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
+6. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
    runner rather than the model: it returned as soon as `isRunning` went false, which is before the
    final text commits, so every answer landed against the following question. Fixed — but the fix is
    unproven, and C is the probe the whole kit exists for.
 
-8. **The two questions the rules exist to answer, and they are one run.** Does the model call
+7. **The two questions the rules exist to answer, and they are one run.** Does the model call
    `load_skill("regles-agent")` before working on a repository, unprompted — the instruction is
    deliberately unconditional — and once loaded, does it quote the skill or invent it? The second has
    a computed key: ask for the `git add -A` rule, which is in `SKILL.md` and **not** in the system
    prompt, and for a branch-naming rule, which is in neither. Inventing the second is the failure
    that matters.
 
-9. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
+8. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
    `qwen3.5-9b-deepseek-v4-flash`, once with OpenFox's global instructions in place and once cleared:
 
    ```bash
@@ -312,79 +300,79 @@ which has an index/depth pair to fall back on.
    instructions are decoration and belong in the skill instead — a finding worth more than a green
    run.
 
-10. **Probe K is the EVAL of truncation-recovery, and it needs a third arm.** With RTK on,
+9. **Probe K is the EVAL of truncation-recovery, and it needs a third arm.** With RTK on,
    `lfm2.5-2.6b` answered 205 against a true 17 587. Two arms are still missing, and they answer
    different questions:
 
    - **RTK off** — the gap between the two answers is what the filter costs in correctness against
      the tokens it saves. A model that gives the same number both times counted instead of reading.
    - **RTK on, and grade the TRAJECTORY rather than the number.** Three outcomes, kept apart:
-     *(a)* answered from truncated output without noticing; *(b)* noticed the `+N more` marker and
+     _(a)_ answered from truncated output without noticing; _(b)_ noticed the `+N more` marker and
      recovered — followed the printed `tail`, or re-ran under `rtk proxy`, or stopped piping into
-     `wc -l`; *(c)* noticed and said so without recovering. Only (b) is the capability. **(a) is
+     `wc -l`; _(c)_ noticed and said so without recovering. Only (b) is the capability. **(a) is
      what every model here has done so far**, which is why the ruling above exists.
 
    Record which of the three, not just the count. A right number reached through (a) is luck.
 
-11. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
-   limit — loaded context 126 720, run stopped at 64 000. But it took 317 s at 32 000 where the 9 B
-   takes 45 s, so what decides whether it is usable is tokens per second at a fixed context. Measure
-   that first. **It also JIT-loads at 8.6 GiB** when anything addresses it, so unload it afterwards.
+10. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
+    limit — loaded context 126 720, run stopped at 64 000. But it took 317 s at 32 000 where the 9 B
+    takes 45 s, so what decides whether it is usable is tokens per second at a fixed context. Measure
+    that first. **It also JIT-loads at 8.6 GiB** when anything addresses it, so unload it afterwards.
 
-12. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
-   three arithmetic questions with exact answers: a yaw-rotated box's AABB, a triangle's unit normal
-   and area, a silhouette width. **It exists because the point of this kit is a `.catz` shape genre
-   that does not exist yet**, and a model that cannot normalise a cross product cannot author or
-   review a parametric solid however honest it is. Cheap — no repository, no window, no tools
-   needed — so it runs on `lfm2.5-2.6b` and `qwen3.5-9b-deepseek-v4-flash` in minutes and says
-   whether the small end of the range is usable for geometry content at all. Record whether the
-   answer was computed, tool-called, or asserted; the third is untrustworthy even when right.
+11. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
+    three arithmetic questions with exact answers: a yaw-rotated box's AABB, a triangle's unit normal
+    and area, a silhouette width. **It exists because the point of this kit is a `.catz` shape genre
+    that does not exist yet**, and a model that cannot normalise a cross product cannot author or
+    review a parametric solid however honest it is. Cheap — no repository, no window, no tools
+    needed — so it runs on `lfm2.5-2.6b` and `qwen3.5-9b-deepseek-v4-flash` in minutes and says
+    whether the small end of the range is usable for geometry content at all. Record whether the
+    answer was computed, tool-called, or asserted; the third is untrustworthy even when right.
 
-13. **The long-context candidates, and what has to be checked before downloading any of them.**
-   The shortlist below came from a chat answer, so **treat every line as a claim until the repo says
-   it**: the trap is a plausible spec for a model that does not exist under that name.
+12. **The long-context candidates, and what has to be checked before downloading any of them.**
+    The shortlist below came from a chat answer, so **treat every line as a claim until the repo says
+    it**: the trap is a plausible spec for a model that does not exist under that name.
 
-   | Candidate                          | Status of the claim                                                                                                                                                  | What decides it here                                                                                                                                                                                                                                                                                                                                                                                         |
-   | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-   | `ai21labs/AI21-Jamba2-3B`          | **DOWNLOADED AND LOADED** — the GGUF question is answered: `bartowski/ai21labs_AI21-Jamba2-3B-GGUF`, Q4_K_M, 1.86 GB. See the *`ai21labs_ai21-jamba2-3b` is MEASURED* item and `results/ai21labs-jamba2-3b.md` | **Loaded 262 144 = declared, 3 342 MiB of VRAM**, matching the 0.26 GiB cache predicted from `config.json`. Only its honesty and its tool use are still unmeasured                                                                                                                                                                                                                                           |
-   | `Qwen/Qwen3-30B-A3B-Instruct-2507` | **Verified**: 262 144 native, 30.5 B total / 3.3 B active, 128 experts 8 active, 48 layers, 4 KV heads, strong tool calling                                          | **Does not fit this box at its window.** MoE saves compute, not memory: all 30.5 B of weights must be resident (~18 GB at Q4) and the KV cache is a dense 48-layer one, ~96 KiB/token — **24 GiB at 256k, 12 GiB at 128k**. Against 12 GB of VRAM and 31 GB of RAM, 18 + 12 is the whole machine. Worth measuring only at a short window, and then it is competing with the 9 B that already scores 10 of 11 |
-   | "Ministral 3 3B Instruct, 256k"    | **Unverified — and the number is suspect.** Mistral's published Ministral 3B is a 128k model                                                                         | Find the actual repo before planning a run. If the 256k variant does not exist, this line is a hallucinated spec and should be deleted rather than carried                                                                                                                                                                                                                                                   |
-   | `amd/Instella-3B-Long-Instruct`    | **Unverified**                                                                                                                                                       | Same: confirm the repo, the context, and whether it tool-calls at all before it costs a download                                                                                                                                                                                                                                                                                                             |
+| Candidate                          | Status of the claim                                                                                                                                                                                            | What decides it here                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ai21labs/AI21-Jamba2-3B`          | **DOWNLOADED AND LOADED** — the GGUF question is answered: `bartowski/ai21labs_AI21-Jamba2-3B-GGUF`, Q4_K_M, 1.86 GB. See the _`ai21labs_ai21-jamba2-3b` is MEASURED_ item and `results/ai21labs-jamba2-3b.md` | **Loaded 262 144 = declared, 3 342 MiB of VRAM**, matching the 0.26 GiB cache predicted from `config.json`. Only its honesty and its tool use are still unmeasured                                                                                                                                                                                                                                           |
+| `Qwen/Qwen3-30B-A3B-Instruct-2507` | **Verified**: 262 144 native, 30.5 B total / 3.3 B active, 128 experts 8 active, 48 layers, 4 KV heads, strong tool calling                                                                                    | **Does not fit this box at its window.** MoE saves compute, not memory: all 30.5 B of weights must be resident (~18 GB at Q4) and the KV cache is a dense 48-layer one, ~96 KiB/token — **24 GiB at 256k, 12 GiB at 128k**. Against 12 GB of VRAM and 31 GB of RAM, 18 + 12 is the whole machine. Worth measuring only at a short window, and then it is competing with the 9 B that already scores 10 of 11 |
+| "Ministral 3 3B Instruct, 256k"    | **Unverified — and the number is suspect.** Mistral's published Ministral 3B is a 128k model                                                                                                                   | Find the actual repo before planning a run. If the 256k variant does not exist, this line is a hallucinated spec and should be deleted rather than carried                                                                                                                                                                                                                                                   |
+| `amd/Instella-3B-Long-Instruct`    | **Unverified**                                                                                                                                                                                                 | Same: confirm the repo, the context, and whether it tool-calls at all before it costs a download                                                                                                                                                                                                                                                                                                             |
 
-   **`openai/gpt-oss-20b` was costed from its `config.json` on 2026-08-08 and NOT downloaded.**
-   Recorded so nobody re-litigates it from a video. 21 B total / 3.6 B active, 24 layers alternating
-   strictly `sliding_attention` / `full_attention`, so **12 full-attention layers** and 12 capped at a
-   128-token window; GQA with 8 KV heads × 64 head_dim. **The cache is cheap** — 24 KiB/token, 3.0 GiB
-   at its full 131 072, 0.75 GiB at 32 k. **The WEIGHTS are what fails, and quantisation is not a
-   lever here**: `unsloth/gpt-oss-20b-GGUF` runs 11.47 GB at Q2_K to 12.04 GB at Q6_K — **0.57 GB
-   across four bits**, because the bulk is already MXFP4 experts that llama.cpp leaves alone. A
-   10.7 GiB floor on an 11.2 GiB card leaves nothing for a cache at any useful depth, so full offload
-   is out and partial offload is a throughput question `prism-ml/bonsai-27b` has already answered
-   badly. **And it buys no context**: 131 072 is the same order as qwen's 128 000, which is measured
-   at 99.7 % — while `initial_context_length` is **4096**, extended 32× by YaRN, which is precisely
-   the declared-versus-usable gap this kit exists to measure. Under the selection rule above it is a
-   quality bet at the same context, for the price of the whole card.
+**`openai/gpt-oss-20b` was costed from its `config.json` on 2026-08-08 and NOT downloaded.**
+Recorded so nobody re-litigates it from a video. 21 B total / 3.6 B active, 24 layers alternating
+strictly `sliding_attention` / `full_attention`, so **12 full-attention layers** and 12 capped at a
+128-token window; GQA with 8 KV heads × 64 head_dim. **The cache is cheap** — 24 KiB/token, 3.0 GiB
+at its full 131 072, 0.75 GiB at 32 k. **The WEIGHTS are what fails, and quantisation is not a
+lever here**: `unsloth/gpt-oss-20b-GGUF` runs 11.47 GB at Q2_K to 12.04 GB at Q6_K — **0.57 GB
+across four bits**, because the bulk is already MXFP4 experts that llama.cpp leaves alone. A
+10.7 GiB floor on an 11.2 GiB card leaves nothing for a cache at any useful depth, so full offload
+is out and partial offload is a throughput question `prism-ml/bonsai-27b` has already answered
+badly. **And it buys no context**: 131 072 is the same order as qwen's 128 000, which is measured
+at 99.7 % — while `initial_context_length` is **4096**, extended 32× by YaRN, which is precisely
+the declared-versus-usable gap this kit exists to measure. Under the selection rule above it is a
+quality bet at the same context, for the price of the whole card.
 
-   **The order that wastes the least: confirm the GGUF, compute the cache from `config.json`, then
-   download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
-   it is the one worth the check.
+**The order that wastes the least: confirm the GGUF, compute the cache from `config.json`, then
+download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
+it is the one worth the check.
 
-14. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
-   scores 8/1/2 and loads its full 128 000. Its measured gap is **comprehension**, not window: it
-   uses 66.2 % of what it loads, where the 9 B uses 99.7 %. Fine-tuning changes behaviour — refusal
-   phrasing, tool discipline, format adherence — and **a fine-tune does not extend the window it can
-   actually reason across**; that is architecture and training length. So it is the right lever for
-   the probes it fails on behaviour, and the wrong one for the 84 707 ceiling. The *probe L on every
-   model* item says whether the arithmetic is there to build on before any of this is worth doing.
+13. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
+    scores 8/1/2 and loads its full 128 000. Its measured gap is **comprehension**, not window: it
+    uses 66.2 % of what it loads, where the 9 B uses 99.7 %. Fine-tuning changes behaviour — refusal
+    phrasing, tool discipline, format adherence — and **a fine-tune does not extend the window it can
+    actually reason across**; that is architecture and training length. So it is the right lever for
+    the probes it fails on behaviour, and the wrong one for the 84 707 ceiling. The _probe L on every
+    model_ item says whether the arithmetic is there to build on before any of this is worth doing.
 
-   **The named target is truncation-recovery** (the ruling above): a model that sees `+N more`,
-   stops, and re-runs under `rtk proxy` instead of answering from the window it was handed. That is
-   behaviour and nothing else — the marker is already on the screen, so no amount of context would
-   have helped, which is exactly why it is the right thing to fine-tune rather than the window.
-   Probe K's arm (b) is the acceptance test, and today the training set is empty: every model
-   measured here is at (a).
+**The named target is truncation-recovery** (the ruling above): a model that sees `+N more`,
+stops, and re-runs under `rtk proxy` instead of answering from the window it was handed. That is
+behaviour and nothing else — the marker is already on the screen, so no amount of context would
+have helped, which is exactly why it is the right thing to fine-tune rather than the window.
+Probe K's arm (b) is the acceptance test, and today the training set is empty: every model
+measured here is at (a).
 
-15. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
+14. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
     another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
     loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
     records the machine for exactly this reason.
