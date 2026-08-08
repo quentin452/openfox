@@ -94,6 +94,12 @@ Paste the contents of `agent-probe-key/needle-<DEPTH>.txt`, then ask:
 > What is the marker string in the text I just gave you? Answer with the marker only.
 
 **Pass:** returns the marker that is **in the file you pasted**.
+**MANGLED:** returns the marker with different capitalisation — `<needle-5-64225>` for
+`NEEDLE-5-64225`. **This counts as having READ the text**, which is the only thing probe G asks, so
+the bisect treats it as a pass; it is reported under its own name because "returns what it read" and
+"returns what it read after mangling it" are two different findings about a model. Measured on
+`ai21-jamba-reasoning-3b`, 2026-08-08, where exact matching scored a successful retrieval at 16 675
+tokens as a comprehension failure.
 **Fail:** anything else, including "I don't see a marker".
 
 ⚠️ **Read the expected marker out of the needle file; never retype it or rebuild it.** The marker is

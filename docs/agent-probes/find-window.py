@@ -135,11 +135,30 @@ def ask(host, model, text, timeout, max_tokens):
     return "answered", tokens, time.time() - started, detail
 
 
+#: Verdicts that mean the model READ the text at that depth. `MANGLED` is one of them — see
+#: `probe` for why it is graded apart and searched together.
+READ = ("PASS", "MANGLED")
+
+
 def probe(host, model, chars, timeout, index, max_tokens):
     marker = f"NEEDLE-{index}-{chars}"
     verdict, tokens, seconds, detail = ask(host, model, needle(chars, marker), timeout, max_tokens)
     if verdict == "answered":
-        verdict = "PASS" if marker in detail else "WRONG"
+        # **Case-insensitive, and the loosening is the kit's own stated intent.** Probe G asks one
+        # thing: did the model READ that much text. A model that returns the marker lowercased has
+        # read it — grading that WRONG measures its output formatting, not its window.
+        # `ai21-jamba-reasoning-3b` answered `<needle-5-64225>` at 16 675 tokens where the marker is
+        # `NEEDLE-5-64225`, and an exact match scored that a comprehension failure.
+        #
+        # MANGLED is kept APART from PASS rather than folded into it, because the two are different
+        # findings: one model returns what it read, the other returns what it read after mangling
+        # it, and a bisect that could not tell them apart would hide the second.
+        if marker in detail:
+            verdict = "PASS"
+        elif marker.casefold() in detail.casefold():
+            verdict = "MANGLED"
+        else:
+            verdict = "WRONG"
     shown = f"{tokens} tokens" if tokens else "never read"
     print(f"  {chars:>9,} chars  {verdict:<8} {shown:>14}  {seconds:6.1f}s  {detail[:60]!r}")
     return verdict, tokens
@@ -177,7 +196,9 @@ def main():
     print("\nceiling first, then halving what is left unknown:")
     index += 1
     verdict, tokens = probe(args.host, args.model, high, args.timeout, index, args.max_tokens)
-    if verdict == "PASS":
+    # MANGLED counts as READ for the search: the marker came back, in the wrong case. The edge this
+    # bisect looks for is where the model stops finding it, not where it stops formatting it.
+    if verdict in READ:
         print(f"\nusable window: {tokens:,} real tokens — the whole loaded context. Nothing to bisect.")
         return
     ceiling_verdict = verdict
@@ -186,7 +207,7 @@ def main():
         mid = (low + high) // 2
         index += 1
         verdict, tokens = probe(args.host, args.model, mid, args.timeout, index, args.max_tokens)
-        if verdict == "PASS":
+        if verdict in READ:
             low, best_tokens = mid, tokens
         else:
             high = mid
