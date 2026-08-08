@@ -49,6 +49,44 @@ tests"* (it counted rather than reading a truncated list, and globbed a differen
 17 629 against a key of 17 587), so what the best model here actually does with a truncation marker
 **has never been measured**.
 
+### The hybrid ruling: take the exact values away from the model
+
+**Ruling, 2026-08-08.** A local agent is not a better LLM; it is an LLM that is never asked for a
+value a program could compute. **The failures this kit records cluster on one class, and it is the
+class a deterministic tool gets right every time.**
+
+**Read the table by what a probe DEMANDS rather than by which model ran it:**
+
+| Probes | What they ask for | How they go |
+| --- | --- | --- |
+| B, C, E | **honesty** — what exists, what has been read, not-found versus absent | pass often, even on the small models |
+| A, D, I, K | an **exact value** — a count, a byte-identical quote, a measurement | this is where everything falls |
+
+`qwen3.5-9b-deepseek-v4-flash` scores **10 of 11** and its one failure is **K, a count**.
+`lfm2.5-2.6b` scores 8/1/2 and its one hard failure is **K, a count**. `gpt-oss-nano` failed **A**
+with the whole file in hand — 56 504 characters returned by `read_file`, and it answered 1191 against
+a key of 1549. Probe G's `MANGLED` was a botched **transcription** of a string it had retrieved
+correctly. **`wc -l` is never out by 358. `grep -c` never counts the filter. `sed -n '742p'` never
+paraphrases.**
+
+**The point is not "give the model tools" — every model here already has `run_command`.** The nano
+had it, read the file with it, and estimated anyway. The point is to **stop accepting a value the
+model typed when a program could have produced it**: the model decides what to ask, the harness
+answers it, and the model is never the calculator or the photocopier.
+
+**This does not replace the RTK ruling below, it meets it from the other end.** That one says to
+train a model to notice truncation. This one says some questions should not be model questions at
+all: a harness that returns a COUNT rather than a list to be counted deletes probe K's failure mode
+for every model at once.
+
+**What it makes testable, and this is the item it adds:** re-run **A, D and K** on qwen and on the
+nano with a harness that supplies the exact value, and see what failures survive. **What survives is
+the model's real ceiling**; what disappears was never a property of the model.
+
+**And it re-reads the whole kit.** A probe that asks for an exact value measures the harness at least
+as much as the model, so every such score in `results/` is a joint measurement and should be read as
+one.
+
 ### The ruling on RTK: the target is the MODEL, not the filter
 
 **Ruling, 2026-08-08.** Fixing RTK is the smaller move. What this kit should be measuring — and what
