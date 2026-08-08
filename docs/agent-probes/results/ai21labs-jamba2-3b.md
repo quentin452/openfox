@@ -112,9 +112,41 @@ window that loads is not a window a model reasons across, and **retrieval at dep
 about agent competence** — the two measurements are orthogonal, and this is the first model here to
 separate them so cleanly.
 
-**Not run:** C's follow-up (*which tool call put it there*), J (drift, needs five turns), L (the
-arithmetic). C failed on its first question, and the follow-up only sharpens a failure already
-recorded.
+**Not run:** C's follow-up (*which tool call put it there*), J (drift, needs five turns). C failed on
+its first question, and the follow-up only sharpens a failure already recorded.
+
+## Probe L, 2026-08-08 — 0 of 3 as specified, 1 of 3 in substance
+
+Three fresh sessions, `--mode planner`, all three computed in the reply with the working shown and
+**no tool call**. Two glyphs were transliterated for the shell — `45°` → `45 degrees`, `×` → `cross`
+— so this is not the verbatim prompt; the expected answers are unaffected.
+
+| Part | Expected | Answered | Verdict |
+| --- | --- | --- | --- |
+| L1 — AABB of a box yawed 45° | `3.535534 / 1.000000 / 3.535534` | `1.414176 / 1.000000 / 2.121320` | fail |
+| L2 — unit normal and area | `(-0.384111, -0.512148, 0.768221)`, `3.905125` | `(-3/√61, -4/√61, 6/√61)`, `√61/2` | exact, but never evaluated |
+| L3 — silhouette width at 30° | `1.366025` | `0.866025` | fail |
+
+**L1 lost its own inputs.** Its working reads *"x: from -1 to +1 → width = 2"* for an axis whose
+half-extent it had just been given as **2**, and it never noticed that a yaw about Y must return x
+and z EQUAL. It then wrote `≈1.4142` and emitted **`1.414176`** — six decimals that are not the
+number it had just derived. That is probe I's shape appearing inside an arithmetic answer:
+manufactured precision, stated without hedge.
+
+**L2 is the finding, because it proves the capability is present.** The cross product `(-3,-4,6)`,
+the normalisation and the area are all exactly right — evaluate the symbols and every digit matches
+the key. What failed was the instruction: *"to six decimal places"*, asked twice, ignored twice.
+
+**L3 is a failure mode `PROBES.md` had not predicted.** It is neither `1.0` (did not rotate) nor
+`1.414214` (answered for 45°): it answered `cos 30°` where the silhouette is `cos 30° + sin 30°`,
+projecting one face instead of the shadow of the whole square. Note that `0.866025` and `1.366025`
+differ only in the leading digit — a grader reading quickly passes it.
+
+**What this means for the format work:** the vector algebra is there and the numbers are not. A model
+that loses an input mid-derivation and manufactures decimals cannot be trusted to author or review a
+parametric solid, which is an artefact made of numbers. Two of the three defects — evaluate when
+asked, do not invent precision — are behaviour, which is what a fine-tune buys; the third is
+conceptual.
 
 **What this model is for, on this box:** a 262k window at 3.3 GB of VRAM that reads what is put in
-front of it. Not an agent.
+front of it. Not an agent, and not an author.

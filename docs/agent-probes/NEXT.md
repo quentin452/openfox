@@ -23,6 +23,32 @@ answered 205 where the truth is 17 587, with a subdirectory reporting more match
 containing it. RTK truncates output to about 25 lines, so `wc -l` counted the filter. That is the
 failure this kit was written for, caught in the act for the first time.
 
+### The selection rule: a SMALLER context that is GOOD beats a bigger one that hallucinates
+
+**Ruling, 2026-08-08.** 128 000 tokens a model stays correct across is worth more than 262 144 it
+fills with invention. **A window is not a score, and this file must stop reading it as one** — the
+headline number for a model is what it can be trusted to do across its window, never the window.
+
+**The kit had already proved this and had not drawn the conclusion.** `ai21labs_ai21-jamba2-3b`
+retrieves a marker at **262 055 tokens, 100 %** — the best window measured here — and scores **2 of 9
+on A–K**, inventing a tool name rather than reporting one missing, running the same failing command
+23 times, and calling a file it had never read "loaded in context". Probe L then found the same shape
+in arithmetic: it lost its own inputs mid-derivation and printed `1.414176` for a value it had just
+written as `≈1.4142`. **Retrieval at 262k predicts nothing about staying correct at 262k**, and this
+rule is what that separation is FOR.
+
+**What it selects, on today's measurements:** `qwen3.5-9b-deepseek-v4-flash` — 127 563 of 128 000
+loaded (**99.7 %**), **10 of 11** on A–K, every refusal above its ceiling the server's in under three
+seconds. It is already installed and already measured. jamba2-3b keeps the long-context crown and
+loses the selection.
+
+**And the two rulings meet on one probe.** Qwen's single failure is **K**, and K is the
+truncation-recovery capability the ruling below names. So the most valuable single run in this queue
+is K re-run on qwen under the three-outcome grading — its recorded failure was *"not in the way K
+tests"* (it counted rather than reading a truncated list, and globbed a different scope to answer
+17 629 against a key of 17 587), so what the best model here actually does with a truncation marker
+**has never been measured**.
+
 ### The ruling on RTK: the target is the MODEL, not the filter
 
 **Ruling, 2026-08-08.** Fixing RTK is the smaller move. What this kit should be measuring — and what
@@ -220,6 +246,20 @@ result* item.
    | `Qwen/Qwen3-30B-A3B-Instruct-2507` | **Verified**: 262 144 native, 30.5 B total / 3.3 B active, 128 experts 8 active, 48 layers, 4 KV heads, strong tool calling                                          | **Does not fit this box at its window.** MoE saves compute, not memory: all 30.5 B of weights must be resident (~18 GB at Q4) and the KV cache is a dense 48-layer one, ~96 KiB/token — **24 GiB at 256k, 12 GiB at 128k**. Against 12 GB of VRAM and 31 GB of RAM, 18 + 12 is the whole machine. Worth measuring only at a short window, and then it is competing with the 9 B that already scores 10 of 11 |
    | "Ministral 3 3B Instruct, 256k"    | **Unverified — and the number is suspect.** Mistral's published Ministral 3B is a 128k model                                                                         | Find the actual repo before planning a run. If the 256k variant does not exist, this line is a hallucinated spec and should be deleted rather than carried                                                                                                                                                                                                                                                   |
    | `amd/Instella-3B-Long-Instruct`    | **Unverified**                                                                                                                                                       | Same: confirm the repo, the context, and whether it tool-calls at all before it costs a download                                                                                                                                                                                                                                                                                                             |
+
+   **`openai/gpt-oss-20b` was costed from its `config.json` on 2026-08-08 and NOT downloaded.**
+   Recorded so nobody re-litigates it from a video. 21 B total / 3.6 B active, 24 layers alternating
+   strictly `sliding_attention` / `full_attention`, so **12 full-attention layers** and 12 capped at a
+   128-token window; GQA with 8 KV heads × 64 head_dim. **The cache is cheap** — 24 KiB/token, 3.0 GiB
+   at its full 131 072, 0.75 GiB at 32 k. **The WEIGHTS are what fails, and quantisation is not a
+   lever here**: `unsloth/gpt-oss-20b-GGUF` runs 11.47 GB at Q2_K to 12.04 GB at Q6_K — **0.57 GB
+   across four bits**, because the bulk is already MXFP4 experts that llama.cpp leaves alone. A
+   10.7 GiB floor on an 11.2 GiB card leaves nothing for a cache at any useful depth, so full offload
+   is out and partial offload is a throughput question `prism-ml/bonsai-27b` has already answered
+   badly. **And it buys no context**: 131 072 is the same order as qwen's 128 000, which is measured
+   at 99.7 % — while `initial_context_length` is **4096**, extended 32× by YaRN, which is precisely
+   the declared-versus-usable gap this kit exists to measure. Under the selection rule above it is a
+   quality bet at the same context, for the price of the whole card.
 
    **The order that wastes the least: confirm the GGUF, compute the cache from `config.json`, then
    download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
