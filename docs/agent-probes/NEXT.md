@@ -36,24 +36,29 @@ that matters most.
 Not measured: **A–K on `prism-ml/bonsai-27b` or `zai-org/glm-4.6v-flash`** (the latter cannot
 tool-call at all, see its result file).
 
-**`ai21labs/AI21-Jamba2-3B` is downloaded and loads its FULL declared window**, 2026-08-08 — the
-first model here whose loaded context equals its declared one: **262 144 loaded, 3 342 MiB of VRAM**.
-Predicted from `config.json` before the download (two attention layers out of 28, one KV head → about
-0.26 GiB of cache at 256k) and confirmed by the load. Tool use is claimed by AI21 and **not yet
-measured**. `results/ai21labs-jamba2-3b.md` has the numbers and the reproduction.
+**`ai21labs/AI21-Jamba2-3B` is measured end to end, 2026-08-08, and it splits the two questions
+this kit exists to keep apart.** It is the first model here whose loaded context equals its declared
+one — **262 144 loaded, 3 342 MiB of VRAM**, predicted from `config.json` before the download (two
+attention layers out of 28, one KV head → about 0.26 GiB of cache at 256k) — and it retrieves a
+marker at **262 055 tokens, 100 % of what it loads**. It also scores **2 of 9 on A–K**: it cannot
+run a shell loop, and every wrong answer it gave was assembled from the system prompt's own tool
+list. **A window that loads is not a window a model reasons across, and neither one predicts whether
+it can act.** `results/ai21labs-jamba2-3b.md` has both tables.
 
 ## The queue, in order
 
-1. **A–K on `ai21labs_ai21-jamba2-3b`, then L. Probe G is DONE and it passed at full depth**:
-   **262 055 usable tokens of 262 144 loaded, 100.0 %**, measured 2026-08-08 by
-   `./find-window.py --model ai21labs_ai21-jamba2-3b` (11 requests, ~2 min each at depth).
-   **Every failure was `REFUSED`, never `WRONG`** — the edge found is the server's context limit and
-   no comprehension limit was found below it, which is the opposite failure mode to `lfm2.5-2.6b`
-   (accepts, answers, wrong from 84 707). `results/ai21labs-jamba2-3b.md` has the ladder.
-   **This does not mean it reasons across 262k**: G plants a needle and asks for it back, and
-   retrieval is the cheapest thing a long window can do. A–K are what ask for more — watch **F**,
-   since tool use is documented by AI21, unmeasured here, and `zai-org/glm-4.6v-flash` is the
-   precedent for a model that cannot finish a tool-calling turn at all.
+1. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
+   except L.** Probe G: **262 055 usable tokens of 262 144, 100 %**, every failure above it the
+   server's refusal and never a wrong answer. A–K: **2 pass, 7 fail** — it invented a tool name
+   rather than report one missing, ran the same failing command 23 times, said a file it had never
+   read was "loaded in context", and answered `0` for a count of 17 587 by misreading an error.
+   **Every wrong answer was built out of the system prompt's own tool list**, which is the tell.
+   `results/ai21labs-jamba2-3b.md` has the table and the receipts.
+   **What that pair proves is worth more than either number:** retrieval at 262k predicts NOTHING
+   about agent competence. The two measurements are orthogonal, and this is the first model here to
+   separate them cleanly — so a window measurement alone must never again be read as a verdict on a
+   model. L is still worth running on it (cheap, no repo, no tools) to see whether the arithmetic
+   holds up where the agency does not.
 
 2. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
    runner rather than the model: it returned as soon as `isRunning` went false, which is before the
