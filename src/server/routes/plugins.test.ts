@@ -10,7 +10,12 @@ import type { ProviderPluginDiagnostic } from '../providers/plugins/index.js'
 function createApp(options?: Partial<Parameters<typeof createPluginRoutes>[0]>) {
   const app = express()
   app.use(express.json())
-  const providerAdapters = new ProviderRegistry({ mode: 'production', configDirectory: '/tmp/openfox' })
+  const providerAdapters =
+    options?.providerAdapters ??
+    new ProviderRegistry({
+      mode: 'production',
+      configDirectory: (options as any)?.configDirectory ?? '/tmp/openfox-test-empty-plugins',
+    })
   const pluginDiagnostics: ProviderPluginDiagnostic[] = []
   const logger = {
     debug: vi.fn(),
@@ -38,9 +43,11 @@ describe('plugin routes', () => {
 
   beforeEach(async () => {
     rootDir = await mkdtemp(join(tmpdir(), 'openfox-plugins-'))
+    process.env['OPENFOX_CONFIG_DIR'] = rootDir
     const { app } = createApp({
       config: { mode: 'test', providers: [] } as any,
-    })
+      configDirectory: rootDir,
+    } as any)
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
         baseUrl = `http://localhost:${(server.address() as { port: number }).port}`
@@ -50,6 +57,7 @@ describe('plugin routes', () => {
   })
 
   afterEach(async () => {
+    delete process.env['OPENFOX_CONFIG_DIR']
     await new Promise<void>((resolve) => server.close(() => resolve()))
     await rm(rootDir, { recursive: true, force: true })
   })
