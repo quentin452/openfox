@@ -58,9 +58,14 @@ harness produces:
 </tool_response>
 ```
 
-That result never existed. **A harness that parses tool results out of assistant text rather than
-from its own dispatcher can be fed forged evidence by the model** — worth checking in OpenFox
-independently of any model.
+That result never existed. **Checked the same day, and OpenFox does not ingest it**: `grep -rn
+"tool_response" src/` returns nothing, and a tool result reaches the model only as a `role: 'tool'`
+message carrying a `toolCallId` that the dispatcher built. The forged block is inert text.
+
+**The hazard that remains is in READING, and it is this kit's.** Five of the nine probes are graded
+by a human reading a transcript, and a fabricated tool result sits in that transcript looking
+exactly like a real one — it nearly graded as real here. A tool result is only real if the runner
+printed it as a `[tool]` line.
 
 **It leaks ChatML control tokens** — `<|im_start|>`, `</|im_start>`, `<|im_start|>marker|<|im_start|/>`
 — in G, B and K. That is a model trained under one chat template and packaged with another, and it

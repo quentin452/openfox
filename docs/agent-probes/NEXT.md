@@ -78,18 +78,27 @@ output, at the exact shape the harness produces, with an invented exit code — 
    `MANGLED`, and a marker returned in the wrong case would have scored as a comprehension failure
    there as well. Its edge of 84 707 can only move up.
 
-3. **Check whether OpenFox can be fed a forged tool result.** `Jamba-Reasoning-3B-Agent-v1` wrote
-   a complete `<tool_response>` block into its own assistant text — right shape, invented exit code
-   — for a command it never ran. **If the server parses tool results out of the assistant stream
-   rather than from its own dispatcher, a model can forge evidence**, and every probe that grades a
-   transcript is then grading something the model wrote. This is a code question, not a model one,
-   and it outranks the rest of this queue because it decides whether the transcripts this kit reads
-   can be trusted at all.
+3. **The forged tool result is NOT an OpenFox vulnerability — checked, 2026-08-08.**
+   `Jamba-Reasoning-3B-Agent-v1` wrote a complete `<tool_response>` block into its own assistant
+   text, right shape, invented exit code, for a command it never ran. The question that raised was
+   whether the server ingests it. **It does not**: `grep -rn "tool_response" src/` returns nothing,
+   and a tool result reaches the model only as a message with `role: 'tool'` and a `toolCallId`,
+   built by the dispatcher (`src/server/events/fold-messages.ts`, read back in
+   `src/server/ws/protocol.ts:64`). The forged block is inert text.
+   **What remains is a READING hazard, and it is this kit's problem rather than the server's.**
+   Probes A, C, E, F and K are graded by a human reading a transcript, and a fabricated tool result
+   sits in that transcript looking exactly like a real one. It nearly graded as real here. So: when
+   a transcript shows a tool result, check it came from a `[tool]` line the runner printed — the
+   runner prints dispatched calls, and the model's prose is not one.
 
-4. **Add a per-turn watchdog to the runner.** Probe C hung for twelve minutes with
-   `isRunning: true` while LM Studio was IDLE and the assistant message was empty — a model that
-   leaks control tokens can stall a turn that has finished. `run-probe.py` waits out its whole
-   timeout for that; the kit should report `STALLED` and move on.
+4. **Add a per-turn watchdog to the runner, and this one IS a defect.** Probe C hung for twelve
+   minutes with the session reporting `isRunning: true` while LM Studio sat IDLE and the assistant
+   message was empty — a model that leaks control tokens can stall a turn that has already
+   finished. `isRunning` is cleared by a `running.changed` event in
+   `src/server/chat/orchestrator.ts:246`, so the hang means that path was never reached. Two
+   separate fixes: the server should not be able to hold a turn open with no generation running,
+   and `run-probe.py` should report **STALLED** and move on rather than waiting out its whole
+   timeout. The runner half is cheap and is what unblocks the queue.
 
 5. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
    except L.** Probe G: **262 055 usable tokens of 262 144, 100 %**, every failure above it the
