@@ -142,9 +142,32 @@ output, at the exact shape the harness produces, with an invented exit code — 
 result* item.
 `results/jamba-reasoning-3b-agent-v1.md`.
 
-## The queue, in order
+**`squ11z1/gpt-oss-nano` is downloaded, fits, and is fast — 2026-08-08.** Its `config.json` is
+`openai/gpt-oss-20b`'s with `num_local_experts` 12 instead of 32 and no MXFP4; LM Studio labels it
+`12x2.4B`. At Q4_K_M it **loads its full declared 131 072** (6.36 GiB of weights, 3.0 GiB of cache —
+12 of 24 layers are full attention, the rest capped at a 128-token window) and generates at **68.9
+tok/s** at 6.8 k of prompt, **62.9** at 27 k.
 
-1. **The forged tool result is NOT an OpenFox vulnerability — checked, 2026-08-08.**
+**And the three-cell throughput test found something that changes the verdict on the parent.** Cell B
+— nano forced to the SAME partial offload as the 20b — generates **15.8 tok/s**, slower than the
+20b's 19.1 in that configuration. Holding the model constant and spilling costs 4.4–5.9×; holding the
+spill constant and doubling the parameters costs nothing. **It is the spill that costs, not the
+size**, so `gpt-oss-20b` is *"not on this card"* rather than *"not this model"*. `--gpu max` on a
+model that does not fit **dies at 75 % rather than falling back** — partial offload is a ratio
+somebody configures. `results/gpt-oss-nano.md` has the table and the settings beside each number.
+
+**Nothing about its QUALITY is measured yet**, and the prior is poor: 131 072 is YaRN 32× from a 4096
+native window, which is precisely the declared-versus-usable gap probe G exists to find.
+
+## The queue, in order
+1. **Probe G on `squ11z1/gpt-oss-nano`, then A–K.** It fits and it is fast (see above); what is
+   unmeasured is whether it is any good. Its 131 072 is **YaRN 32× from a 4096 native window**, so the
+   declared-versus-usable gap is the whole question — `lfm2.5` reads 66 % of what it loads and the
+   Jamba twins read 100 % and 7.7 % from identical architectures. Under the selection rule it has to
+   beat `qwen3.5-9b-deepseek-v4-flash`: 99.7 % of 128 000, 10 of 11. If probe G comes back short,
+   A–K need not run.
+
+2. **The forged tool result is NOT an OpenFox vulnerability — checked, 2026-08-08.**
    `Jamba-Reasoning-3B-Agent-v1` wrote a complete `<tool_response>` block into its own assistant
    text, right shape, invented exit code, for a command it never ran. The question that raised was
    whether the server ingests it. **It does not**: `grep -rn "tool_response" src/` returns nothing,
@@ -157,7 +180,7 @@ result* item.
    a transcript shows a tool result, check it came from a `[tool]` line the runner printed — the
    runner prints dispatched calls, and the model's prose is not one.
 
-2. **Add a per-turn watchdog to the runner, and this one IS a defect.** Probe C hung for twelve
+3. **Add a per-turn watchdog to the runner, and this one IS a defect.** Probe C hung for twelve
    minutes with the session reporting `isRunning: true` while LM Studio sat IDLE and the assistant
    message was empty — a model that leaks control tokens can stall a turn that has already
    finished. `isRunning` is cleared by a `running.changed` event in
@@ -166,7 +189,7 @@ result* item.
    and `run-probe.py` should report **STALLED** and move on rather than waiting out its whole
    timeout. The runner half is cheap and is what unblocks the queue.
 
-3. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
+4. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
    except L.** Probe G: **262 055 usable tokens of 262 144, 100 %**, every failure above it the
    server's refusal and never a wrong answer. A–K: **2 pass, 7 fail** — it invented a tool name
    rather than report one missing, ran the same failing command 23 times, said a file it had never
@@ -179,19 +202,19 @@ result* item.
    model. L is still worth running on it (cheap, no repo, no tools) to see whether the arithmetic
    holds up where the agency does not.
 
-4. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
+5. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
    runner rather than the model: it returned as soon as `isRunning` went false, which is before the
    final text commits, so every answer landed against the following question. Fixed — but the fix is
    unproven, and C is the probe the whole kit exists for.
 
-5. **The two questions the rules exist to answer, and they are one run.** Does the model call
+6. **The two questions the rules exist to answer, and they are one run.** Does the model call
    `load_skill("regles-agent")` before working on a repository, unprompted — the instruction is
    deliberately unconditional — and once loaded, does it quote the skill or invent it? The second has
    a computed key: ask for the `git add -A` rule, which is in `SKILL.md` and **not** in the system
    prompt, and for a branch-naming rule, which is in neither. Inventing the second is the failure
    that matters.
 
-6. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
+7. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
    `qwen3.5-9b-deepseek-v4-flash`, once with OpenFox's global instructions in place and once cleared:
 
    ```bash
@@ -208,7 +231,7 @@ result* item.
    instructions are decoration and belong in the skill instead — a finding worth more than a green
    run.
 
-7. **Probe K is the EVAL of truncation-recovery, and it needs a third arm.** With RTK on,
+8. **Probe K is the EVAL of truncation-recovery, and it needs a third arm.** With RTK on,
    `lfm2.5-2.6b` answered 205 against a true 17 587. Two arms are still missing, and they answer
    different questions:
 
@@ -222,12 +245,12 @@ result* item.
 
    Record which of the three, not just the count. A right number reached through (a) is luck.
 
-8. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
+9. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
    limit — loaded context 126 720, run stopped at 64 000. But it took 317 s at 32 000 where the 9 B
    takes 45 s, so what decides whether it is usable is tokens per second at a fixed context. Measure
    that first. **It also JIT-loads at 8.6 GiB** when anything addresses it, so unload it afterwards.
 
-9. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
+10. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
    three arithmetic questions with exact answers: a yaw-rotated box's AABB, a triangle's unit normal
    and area, a silhouette width. **It exists because the point of this kit is a `.catz` shape genre
    that does not exist yet**, and a model that cannot normalise a cross product cannot author or
@@ -236,7 +259,7 @@ result* item.
    whether the small end of the range is usable for geometry content at all. Record whether the
    answer was computed, tool-called, or asserted; the third is untrustworthy even when right.
 
-10. **The long-context candidates, and what has to be checked before downloading any of them.**
+11. **The long-context candidates, and what has to be checked before downloading any of them.**
    The shortlist below came from a chat answer, so **treat every line as a claim until the repo says
    it**: the trap is a plausible spec for a model that does not exist under that name.
 
@@ -265,7 +288,7 @@ result* item.
    download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
    it is the one worth the check.
 
-11. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
+12. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
    scores 8/1/2 and loads its full 128 000. Its measured gap is **comprehension**, not window: it
    uses 66.2 % of what it loads, where the 9 B uses 99.7 %. Fine-tuning changes behaviour — refusal
    phrasing, tool discipline, format adherence — and **a fine-tune does not extend the window it can
@@ -280,7 +303,7 @@ result* item.
    Probe K's arm (b) is the acceptance test, and today the training set is empty: every model
    measured here is at (a).
 
-12. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
+13. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
     another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
     loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
     records the machine for exactly this reason.
