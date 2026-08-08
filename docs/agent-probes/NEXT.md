@@ -16,6 +16,47 @@ answered 205 where the truth is 17 587, with a subdirectory reporting more match
 containing it. RTK truncates output to about 25 lines, so `wc -l` counted the filter. That is the
 failure this kit was written for, caught in the act for the first time.
 
+### The ruling on RTK: the target is the MODEL, not the filter
+
+**Ruling, 2026-08-08.** Fixing RTK is the smaller move. What this kit should be measuring — and what
+a fine-tune should be buying — is a model that **notices its output was truncated and corrects its
+own trajectory**, because truncation is not an RTK quirk: it is what every pager, every log tail and
+every tool with a cap does to an agent.
+
+**The prerequisite was checked before the ruling was written, because a model cannot be trained to
+detect something invisible.** RTK marks its own truncation, inline, with the recovery path attached:
+
+```
+  +9 more in crates/catz-core/src/solid/project.rs [see remaining: tail -n +26 ~/.local/share/rtk/tee/…log]
+```
+
+Signal present, remedy printed. So this is not detection of an invisible thing — it is obedience to
+a marker that is already on the screen.
+
+**Which explains probe K exactly, and splits it into two behaviours rather than one.** The model ran
+`grep … | wc -l`. The pipe consumes output that RTK has *already* filtered, markers included, so the
+model never saw `+N more` — it saw `205`. The truncation was not ignored, it was destroyed upstream
+of the model's eyes. So:
+
+1. **Never compute an aggregate over filtered output** — `wc -l`, `head -1`, any count. The filter
+   sits upstream of the arithmetic, so the number counts the filter. A true total needs `rtk proxy`.
+2. **`+N more` or `see remaining:` on screen → follow the printed `tail`, or re-run through
+   `rtk proxy`, before concluding anything about the content.**
+
+**Seen a second time, 2026-08-08, in a CatzEngine session, by a model that then caught itself:**
+`grep "^## D" docs/DECISIONS.md | tail -4` returned D022, D023, D024 — the *earliest* entries — when
+it was asked for the last ones, because `tail` took the last four of RTK's 25-line window. The
+`+41 more` marker was visible in the same output. `rtk proxy` gave the truth: 62 decisions, last
+`D062`. Same shape as probe K's 205, one pipe further along.
+
+**What this changes below:** the *probe K* item stops being "measure what the filter costs" and
+becomes the **eval** of this capability; the *fine-tune `lfm2.5-2.6b`* item gains a named target, and
+it is the right kind — behaviour, not window.
+
+**Items are referred to by NAME here, never by number.** Deleting a done line renumbers everything
+under it, and four cross-references in this file were already pointing at the wrong item before
+anybody noticed — a number is a copy of a position, and it goes stale the next time the queue moves.
+
 **`zai-org/glm-4.6v-flash` is out of the running:** it cannot complete a tool-calling turn — it
 repeats one call until `max_tokens` and nothing dispatches. Measured from both ends in
 `results/zai-org-glm-4.6v-flash.md`; qwen does the same request cleanly four times out of four.
@@ -30,8 +71,8 @@ reading a truncated list, and answered 17 629 against a key of 17 587 by globbin
 **The queue's own prediction was refuted, which is the finding.** This file said to expect B, C and E
 to fail, because they are the class that produced the kit. All three passed. The evidence they were
 named on came from an _unstructured_ session against the same model, so what changed is the harness,
-the mode, or the instructions — and one arm cannot say which. Item 3 below is now the measurement
-that matters most.
+the mode, or the instructions — and one arm cannot say which. **The *A/B that says whether the rules
+do anything* item below is now the measurement that matters most.**
 
 Not measured: **A–K on `prism-ml/bonsai-27b` or `zai-org/glm-4.6v-flash`** (the latter cannot
 tool-call at all, see its result file).
@@ -48,37 +89,33 @@ it can act.** `results/ai21labs-jamba2-3b.md` has both tables.
 **`ai21labs/AI21-Jamba-Reasoning-3B` is measured, 2026-08-08, and it is the cleanest comparison the
 kit has made.** Its `config.json` matches `ai21labs_ai21-jamba2-3b`'s on every field that decides
 cost — 28 layers, 2 attention, 1 KV head, 262 144 — and both load their full declared window. The
-twin reads **100 %** of it. This one reads **6.3 %**, and where the twin's failures were the server
-refusing, this one's are the model answering wrong. **Post-training, not architecture, decided the
-usable window.** A–K: 2 pass, 7 fail, with pathologies of its own — invented URLs that it then
-fetches, empty responses after doing the reading, and a parent that contradicted its own sub-agent.
+twin reads **100 %** of it. This one reads **7.7 %** — 20 309 tokens, re-measured 2026-08-08 with the
+`MANGLED` grader, edge within 500 tokens — and where the twin's failures were the server refusing,
+this one's are the model answering wrong. **Post-training, not architecture, decided the usable
+window.** A–K: 2 pass, 7 fail, with pathologies of its own — invented URLs that it then fetches,
+empty responses after doing the reading, and a parent that contradicted its own sub-agent.
+
+**Its two wrong answers either side of the edge are not the same failure**, which is worth more than
+the percentage: below it the model restates the task and answers correctly; at 20 582 and 25 139 it
+answers the literal string `<answer>marker</answer>`. It has stopped retrieving the marker and
+started echoing the SHAPE of the question — the instruction survives where the content does not.
 
 **A community fine-tune was tested and it separates the two purchases, 2026-08-08.**
 `cybertruck32489/Jamba-Reasoning-3B-Agent-v1` carries an empty auto-generated card, so running it
 was the only way to learn what it holds: its usable window is **85 452 tokens against its base's
 16 403 — 5.2×** — and it scores **1 of 9** on A–K where the base scored 2. Someone trained long
 context and wrote "Agent" on the box. It also **fabricated a `<tool_response>` block** in its own
-output, at the exact shape the harness produces, with an invented exit code — see item 3.
+output, at the exact shape the harness produces, with an invented exit code — see the *forged tool
+result* item.
 `results/jamba-reasoning-3b-agent-v1.md`.
 
 ## The queue, in order
 
-1. **Re-run probe G on `ai21-jamba-reasoning-3b` with the fixed grader.** Measured 2026-08-08 at
-   **6.3 % of what it loads** — 16 403 tokens of 262 144 — but the run predates `MANGLED`: at
-   16 675 tokens it returned the marker LOWERCASED and the case-sensitive grader scored it WRONG.
-   The honest edge is between ~16.7 k and ~33.7 k, and one re-run closes it. **The finding stands
-   either way and it is the sharpest one this kit has produced**: this model's `config.json` is
-   identical to `ai21labs_ai21-jamba2-3b`'s on every field, and the twin reads 100 % of the same
-   loaded window while failing only at the server's refusal. Same shape, different post-training,
-   a fortieth of the usable context. A–K: **2 pass, 7 fail** — it invents URLs and fetches them,
-   returns empty responses after reading the file, and contradicts its own sub-agent.
-   `results/ai21-jamba-reasoning-3b.md` has both tables.
-
-2. **Re-run probe G on `lfm2.5-2.6b` too**, for the same reason: its recorded WRONG depths predate
+1. **Re-run probe G on `lfm2.5-2.6b` too**, for the same reason: its recorded WRONG depths predate
    `MANGLED`, and a marker returned in the wrong case would have scored as a comprehension failure
    there as well. Its edge of 84 707 can only move up.
 
-3. **The forged tool result is NOT an OpenFox vulnerability — checked, 2026-08-08.**
+2. **The forged tool result is NOT an OpenFox vulnerability — checked, 2026-08-08.**
    `Jamba-Reasoning-3B-Agent-v1` wrote a complete `<tool_response>` block into its own assistant
    text, right shape, invented exit code, for a command it never ran. The question that raised was
    whether the server ingests it. **It does not**: `grep -rn "tool_response" src/` returns nothing,
@@ -91,7 +128,7 @@ output, at the exact shape the harness produces, with an invented exit code — 
    a transcript shows a tool result, check it came from a `[tool]` line the runner printed — the
    runner prints dispatched calls, and the model's prose is not one.
 
-4. **Add a per-turn watchdog to the runner, and this one IS a defect.** Probe C hung for twelve
+3. **Add a per-turn watchdog to the runner, and this one IS a defect.** Probe C hung for twelve
    minutes with the session reporting `isRunning: true` while LM Studio sat IDLE and the assistant
    message was empty — a model that leaks control tokens can stall a turn that has already
    finished. `isRunning` is cleared by a `running.changed` event in
@@ -100,7 +137,7 @@ output, at the exact shape the harness produces, with an invented exit code — 
    and `run-probe.py` should report **STALLED** and move on rather than waiting out its whole
    timeout. The runner half is cheap and is what unblocks the queue.
 
-5. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
+4. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
    except L.** Probe G: **262 055 usable tokens of 262 144, 100 %**, every failure above it the
    server's refusal and never a wrong answer. A–K: **2 pass, 7 fail** — it invented a tool name
    rather than report one missing, ran the same failing command 23 times, said a file it had never
@@ -113,19 +150,19 @@ output, at the exact shape the harness produces, with an invented exit code — 
    model. L is still worth running on it (cheap, no repo, no tools) to see whether the arithmetic
    holds up where the agency does not.
 
-6. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
+5. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
    runner rather than the model: it returned as soon as `isRunning` went false, which is before the
    final text commits, so every answer landed against the following question. Fixed — but the fix is
    unproven, and C is the probe the whole kit exists for.
 
-7. **The two questions the rules exist to answer, and they are one run.** Does the model call
+6. **The two questions the rules exist to answer, and they are one run.** Does the model call
    `load_skill("regles-agent")` before working on a repository, unprompted — the instruction is
    deliberately unconditional — and once loaded, does it quote the skill or invent it? The second has
    a computed key: ask for the `git add -A` rule, which is in `SKILL.md` and **not** in the system
    prompt, and for a branch-naming rule, which is in neither. Inventing the second is the failure
    that matters.
 
-8. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
+7. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
    `qwen3.5-9b-deepseek-v4-flash`, once with OpenFox's global instructions in place and once cleared:
 
    ```bash
@@ -142,17 +179,26 @@ output, at the exact shape the harness produces, with an invented exit code — 
    instructions are decoration and belong in the skill instead — a finding worth more than a green
    run.
 
-9. **Probe K with RTK toggled, now that one half is measured.** With RTK on, `lfm2.5-2.6b` answered
-   205 against a true 17 587. What is missing is the same probe with the toggle **off**: the gap
-   between the two answers is what the filter costs in correctness, against the tokens it saves. A
-   model that gives the same number both times is one that counted instead of reading.
+8. **Probe K is the EVAL of truncation-recovery, and it needs a third arm.** With RTK on,
+   `lfm2.5-2.6b` answered 205 against a true 17 587. Two arms are still missing, and they answer
+   different questions:
 
-10. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
+   - **RTK off** — the gap between the two answers is what the filter costs in correctness against
+     the tokens it saves. A model that gives the same number both times counted instead of reading.
+   - **RTK on, and grade the TRAJECTORY rather than the number.** Three outcomes, kept apart:
+     *(a)* answered from truncated output without noticing; *(b)* noticed the `+N more` marker and
+     recovered — followed the printed `tail`, or re-ran under `rtk proxy`, or stopped piping into
+     `wc -l`; *(c)* noticed and said so without recovering. Only (b) is the capability. **(a) is
+     what every model here has done so far**, which is why the ruling above exists.
+
+   Record which of the three, not just the count. A right number reached through (a) is luck.
+
+9. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
    limit — loaded context 126 720, run stopped at 64 000. But it took 317 s at 32 000 where the 9 B
    takes 45 s, so what decides whether it is usable is tokens per second at a fixed context. Measure
    that first. **It also JIT-loads at 8.6 GiB** when anything addresses it, so unload it afterwards.
 
-11. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
+10. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
    three arithmetic questions with exact answers: a yaw-rotated box's AABB, a triangle's unit normal
    and area, a silhouette width. **It exists because the point of this kit is a `.catz` shape genre
    that does not exist yet**, and a model that cannot normalise a cross product cannot author or
@@ -161,13 +207,13 @@ output, at the exact shape the harness produces, with an invented exit code — 
    whether the small end of the range is usable for geometry content at all. Record whether the
    answer was computed, tool-called, or asserted; the third is untrustworthy even when right.
 
-12. **The long-context candidates, and what has to be checked before downloading any of them.**
+11. **The long-context candidates, and what has to be checked before downloading any of them.**
    The shortlist below came from a chat answer, so **treat every line as a claim until the repo says
    it**: the trap is a plausible spec for a model that does not exist under that name.
 
    | Candidate                          | Status of the claim                                                                                                                                                  | What decides it here                                                                                                                                                                                                                                                                                                                                                                                         |
    | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-   | `ai21labs/AI21-Jamba2-3B`          | **DOWNLOADED AND LOADED** — the GGUF question is answered: `bartowski/ai21labs_AI21-Jamba2-3B-GGUF`, Q4_K_M, 1.86 GB. See item 1 and `results/ai21labs-jamba2-3b.md` | **Loaded 262 144 = declared, 3 342 MiB of VRAM**, matching the 0.26 GiB cache predicted from `config.json`. Only its honesty and its tool use are still unmeasured                                                                                                                                                                                                                                           |
+   | `ai21labs/AI21-Jamba2-3B`          | **DOWNLOADED AND LOADED** — the GGUF question is answered: `bartowski/ai21labs_AI21-Jamba2-3B-GGUF`, Q4_K_M, 1.86 GB. See the *`ai21labs_ai21-jamba2-3b` is MEASURED* item and `results/ai21labs-jamba2-3b.md` | **Loaded 262 144 = declared, 3 342 MiB of VRAM**, matching the 0.26 GiB cache predicted from `config.json`. Only its honesty and its tool use are still unmeasured                                                                                                                                                                                                                                           |
    | `Qwen/Qwen3-30B-A3B-Instruct-2507` | **Verified**: 262 144 native, 30.5 B total / 3.3 B active, 128 experts 8 active, 48 layers, 4 KV heads, strong tool calling                                          | **Does not fit this box at its window.** MoE saves compute, not memory: all 30.5 B of weights must be resident (~18 GB at Q4) and the KV cache is a dense 48-layer one, ~96 KiB/token — **24 GiB at 256k, 12 GiB at 128k**. Against 12 GB of VRAM and 31 GB of RAM, 18 + 12 is the whole machine. Worth measuring only at a short window, and then it is competing with the 9 B that already scores 10 of 11 |
    | "Ministral 3 3B Instruct, 256k"    | **Unverified — and the number is suspect.** Mistral's published Ministral 3B is a 128k model                                                                         | Find the actual repo before planning a run. If the 256k variant does not exist, this line is a hallucinated spec and should be deleted rather than carried                                                                                                                                                                                                                                                   |
    | `amd/Instella-3B-Long-Instruct`    | **Unverified**                                                                                                                                                       | Same: confirm the repo, the context, and whether it tool-calls at all before it costs a download                                                                                                                                                                                                                                                                                                             |
@@ -176,15 +222,22 @@ output, at the exact shape the harness produces, with an invented exit code — 
    download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
    it is the one worth the check.
 
-13. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
+12. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
    scores 8/1/2 and loads its full 128 000. Its measured gap is **comprehension**, not window: it
    uses 66.2 % of what it loads, where the 9 B uses 99.7 %. Fine-tuning changes behaviour — refusal
    phrasing, tool discipline, format adherence — and **a fine-tune does not extend the window it can
    actually reason across**; that is architecture and training length. So it is the right lever for
-   the probes it fails on behaviour, and the wrong one for the 84 707 ceiling. Probe L (item 6) says
-   whether the arithmetic is there to build on before any of this is worth doing.
+   the probes it fails on behaviour, and the wrong one for the 84 707 ceiling. The *probe L on every
+   model* item says whether the arithmetic is there to build on before any of this is worth doing.
 
-14. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
+   **The named target is truncation-recovery** (the ruling above): a model that sees `+N more`,
+   stops, and re-runs under `rtk proxy` instead of answering from the window it was handed. That is
+   behaviour and nothing else — the marker is already on the screen, so no amount of context would
+   have helped, which is exactly why it is the right thing to fine-tune rather than the window.
+   Probe K's arm (b) is the acceptance test, and today the training set is empty: every model
+   measured here is at (a).
+
+13. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
     another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
     loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
     records the machine for exactly this reason.

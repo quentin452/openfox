@@ -16,13 +16,48 @@ expert, 262 144. So the pair below differs by **post-training and nothing else t
 the config** — which is what makes the comparison worth writing down. Lineage is not established
 here; only that the two are architecturally the same shape.
 
-## Probe G — 6.3 % of what it loads, and the failures are the model's
+## Probe G — 7.7 % of what it loads, and the failures are the model's
+
+**Re-run 2026-08-08 with the `MANGLED` grader, `--gpu max`.** This is the measurement; the run below
+it is kept because it is what a case-sensitive grader reports.
 
 ```
-  1,027,604 chars  REFUSED      never read     1.2s  HTTP 400
-    513,802 chars  WRONG     137 142 tokens   64.0s  [reasoning] echoed the filler back
-    256,901 chars  WRONG      68 216 tokens   34.2s  [reasoning] echoed the filler back
-    128,450 chars  WRONG      33 742 tokens   12.0s  '>'
+  1,027,604 chars  REFUSED      never read     0.8s  HTTP 400
+    513,802 chars  WRONG     137 142 tokens   61.9s  [reasoning] echoed the filler back
+    256,901 chars  WRONG      68 216 tokens   33.7s  [reasoning] echoed the filler back
+    128,450 chars  WRONG      33 742 tokens   12.1s  '>'
+     64,225 chars  MANGLED    16 675 tokens   10.2s  '<needle-5-64225>'
+     96,337 chars  WRONG      25 139 tokens   16.4s  '<answer>marker</answer>'
+     80,281 chars  WRONG      20 833 tokens   16.7s  [reasoning] restated the task
+     72,253 chars  PASS       18 754 tokens   16.3s  [reasoning] restated the task
+     76,267 chars  MANGLED    19 783 tokens   10.4s  '<needle-9-76267>'
+     78,274 chars  PASS       20 309 tokens   15.8s  [reasoning] restated the task
+     79,277 chars  WRONG      20 582 tokens   12.5s  '<answer>marker</answer>'
+
+usable window: 20,309 real tokens of 262,144 loaded — 7.7 %, edge within 500 tokens
+```
+
+**The bracket the previous run left has closed, and it closed inside itself.** That run predicted
+the honest edge lay between ~16.7 k and ~33.7 k; it is 20 309, and the number moved from 6.3 % to
+7.7 % — the direction a grader fix can only move it. **`MANGLED` earned its place twice in one run**,
+at 16 675 and again at 19 783: both were the marker returned lowercased inside the angle brackets it
+had seen around the filler, and both would have scored WRONG before.
+
+**Two distinct wrong answers sit either side of the edge, and they are not the same failure.**
+Below it the model restates the task in `reasoning` and answers correctly; above it, at 20 582 and
+25 139, it answers the literal string `<answer>marker</answer>` — it has stopped retrieving a marker
+and started echoing the SHAPE of the question. That is worth more than the percentage: the failure
+is not a truncated context, it is the instruction surviving while the content does not.
+
+**This remains the opposite failure mode to its architectural twin, and that is still the finding.**
+`ai21labs_ai21-jamba2-3b` never answered wrong: every failure above its edge was the server refusing,
+and it retrieved at 262 055 tokens — 100 %. This one is accepted by the server, answers, and is wrong
+from about 20.5 k tokens up. Same `config.json` on every field that decides cost, same loaded window,
+**a thirteenth of the usable one.**
+
+### The run that predates `MANGLED`, kept for what it shows about grading
+
+```
      64,225 chars  WRONG      16 675 tokens   10.2s  '<needle-5-64225>'   <- the marker, LOWERCASED
      32,112 chars  PASS        8 338 tokens    7.3s  '<answer>NEEDLE-6-32112</answer>'
      63,221 chars  PASS       16 403 tokens   14.5s  '<answer>NEEDLE-11-63221</answer>'
@@ -30,19 +65,10 @@ here; only that the two are architecturally the same shape.
 usable window: 16,403 real tokens of 262,144 loaded — 6.3 %
 ```
 
-**This is the opposite failure mode to its architectural twin, and that is the finding.**
-`ai21labs_ai21-jamba2-3b` never answered wrong: every failure above its edge was the server
-refusing, and it retrieved at 262 055 tokens — 100 %. This one is accepted by the server, answers,
-and is wrong from about 17 k tokens up. Same architecture, same loaded window, **a fortieth of the
-usable one.**
-
-**The 6.3 % is graded harshly and the kit was fixed for it.** At 16 675 tokens it answered
-`<needle-5-64225>` where the marker is `NEEDLE-5-64225` — the same string, lowercased, wrapped in
-the angle brackets it had seen around the filler. Probe G's grader was a case-sensitive substring
-test, so a successful retrieval scored as a comprehension failure. `MANGLED` now exists as a verdict
-(counted as read by the bisect, reported apart from `PASS`). **The honest edge is therefore between
-~16.7 k tokens, where the marker came back mangled, and ~33.7 k, where it answered `>`** — 6 % to
-13 % of what it loads. Re-running G with the fixed grader will narrow it.
+Probe G's grader was a case-sensitive substring test, so a successful retrieval scored as a
+comprehension failure and the reported window was 24 % short. `MANGLED` now exists as a verdict —
+counted as read by the bisect, reported apart from `PASS` — because *"the model found it and typed
+it differently"* and *"the model did not find it"* have different fixes.
 
 ## A–K — 2 pass, 7 fail
 
@@ -66,7 +92,7 @@ said it could not look, and the parent reported a finding anyway.
 
 **The reasoning tune bought exactly one thing and cost another.** Probe C shows real investigation —
 a sub-agent, a `test -f`, an `ls` — where the twin simply asserted. The conclusion drawn from that
-work was still wrong. And it retrieves across a fortieth of the window its twin does.
+work was still wrong. And it retrieves across a thirteenth of the window its twin does.
 
 ## Verdict on this box
 
