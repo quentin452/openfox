@@ -140,6 +140,34 @@ def render(message):
     return f"[{kind}]\n" + "\n".join(lines)
 
 
+def this_turn(state, mark):
+    """The messages THIS probe produced. Everything before `mark` belongs to an earlier one."""
+    return state.get("messages", [])[mark:]
+
+
+def turn_shape(state, mark):
+    """A fingerprint of how far this turn has got, for the stall watchdog.
+
+    Message count and total text length, so a turn that is streaming, calling a tool or thinking
+    all read as movement — and only a turn where nothing at all is happening looks still.
+    """
+    messages = this_turn(state, mark)
+    return (len(messages), sum(len(str(m.get("content") or "")) for m in messages))
+
+
+def answered(state, mark):
+    """Whether THIS probe has committed assistant text.
+
+    **Scoped to this turn on purpose.** Asking whether the session's last message is assistant text
+    answers yes on the previous probe's answer, which is how a whole run comes to be graded one
+    question out of step.
+    """
+    return any(
+        m.get("role") == "assistant" and isinstance(m.get("content"), str) and m["content"].strip()
+        for m in this_turn(state, mark)
+    )
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("probe", help="the probe text, as written in PROBES.md")
@@ -149,6 +177,23 @@ def main():
     ap.add_argument("--mode", default="builder", help="agent mode (default: builder — it has read_file and load_skill)")
     ap.add_argument("--host", default=DEFAULT_HOST)
     ap.add_argument("--timeout", type=int, default=900, help="seconds to wait for the turn (default 900)")
+    ap.add_argument(
+        "--settle",
+        type=int,
+        default=30,
+        help="seconds to wait for THIS probe's answer after isRunning goes false (default 30)",
+    )
+    ap.add_argument(
+        "--stalled-after",
+        type=int,
+        default=240,
+        help=(
+            "seconds with no change at all while the session still claims to be running, before "
+            "this reports STALLED and moves on (default 240). Deliberately larger than the "
+            "server's own 120 s idle timeout, so the server gets to produce a real error first "
+            "and this only speaks when it did not"
+        ),
+    )
     args = ap.parse_args()
 
     host = args.host
@@ -189,35 +234,70 @@ def main():
     # The session flips to running asynchronously; a poll that only checked isRunning would see
     # the pre-flip false and call the turn finished before it began.
     seen_running = False
+    verdict = None
+    last_shape = turn_shape(state, mark)
+    last_change = started
+
     while True:
         time.sleep(2)
         state = call(host, "GET", f"/api/sessions/{session_id}?full=true")
         running = state["session"]["isRunning"]
         seen_running = seen_running or running
-        elapsed = time.time() - started
+        now = time.time()
+        elapsed = now - started
+
+        shape = turn_shape(state, mark)
+        if shape != last_shape:
+            last_shape, last_change = shape, now
+
         if seen_running and not running:
             # `isRunning` flips before the final assistant text is committed, so returning here
             # captures the turn without its answer — and the answer then shows up at the top of the
             # NEXT probe's output, which silently misaligns a whole run. Measured: an eleven-probe
             # session where every answer was attributed to the following question.
-            for _ in range(5):
-                last = state["messages"][-1] if state["messages"] else {}
-                text = last.get("content")
-                if last.get("role") == "assistant" and isinstance(text, str) and text.strip():
-                    break
+            #
+            # **Two things this used to get wrong, and the second is why the race was thought
+            # closed when it was not.** It waited a fixed five polls and then gave up quietly; and
+            # it inspected `messages[-1]`, the last message in the SESSION, which in a continued
+            # session is the PREVIOUS probe's answer — already committed, already non-empty, so the
+            # wait ended immediately and the race was never actually waited out. Only messages from
+            # this probe count, and running out of patience is a verdict rather than a silence.
+            deadline = now + args.settle
+            while not answered(state, mark) and time.time() < deadline:
                 time.sleep(2)
                 state = call(host, "GET", f"/api/sessions/{session_id}?full=true")
+            if not answered(state, mark):
+                verdict = (
+                    f"NO ANSWER — the turn ended and no assistant text arrived within {args.settle}s. "
+                    "Do NOT grade this as a model failure and do NOT read the next probe's output as "
+                    "this one's answer."
+                )
             break
+
+        if running and now - last_change > args.stalled_after:
+            # The server thinks a turn is in flight and nothing has moved. Measured once at twelve
+            # minutes with the provider idle and the assistant message empty. Waiting out the whole
+            # --timeout buys nothing: what is being measured has already stopped.
+            verdict = (
+                f"STALLED after {elapsed:.0f}s — the session still reports isRunning and nothing has "
+                f"changed for {args.stalled_after}s. This measures the harness, not the model: "
+                "leave the probe unscored."
+            )
+            break
+
         if elapsed > args.timeout:
-            print(f"TIMEOUT after {elapsed:.0f}s — a client timeout is not a model limit (PROBES.md §G)")
+            verdict = f"TIMEOUT after {elapsed:.0f}s — a client timeout is not a model limit (PROBES.md §G)"
             break
+
         if not seen_running and elapsed > 60:
-            print("the session never started running — is a model loaded?")
+            verdict = "the session never started running — is a model loaded?"
             break
 
     for message in state["messages"][mark:]:
         print(render(message))
 
+    if verdict:
+        print(f"\n{verdict}")
     print(f"\n{time.time() - started:.1f}s  session {session_id}")
 
 
