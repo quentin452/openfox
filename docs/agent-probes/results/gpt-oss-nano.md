@@ -130,3 +130,42 @@ by construction, since it fits entirely on the card. **The whole question is beh
 
 **What this file establishes:** it FITS, it is FAST, and it READS its whole window. Three questions
 that could each have killed it, and it survived all three.
+
+## Probe M — writing `.catz`, graded by a compiler, 2026-08-08
+
+**The probe A–K could not be: nothing is graded by eye.** The answer is a `.catz` file written into
+the CatzEngine corpus, walked by `catz-gates::roundtrip`, and taken out again. The brief is
+`FORMAT.md` §7 read out of the document plus the palette's ink names — **9 078 characters, about
+2 269 tokens**, which is the whole context this task needs and a thirtieth of what the model loads.
+
+| Tier | | |
+| --- | --- | --- |
+| parses | **ok** | the lexer accepted it |
+| resolves | **ok** | every word it wrote exists in the declaration table |
+| reads | **NO** | `argument 2 is not a group — a point is written in parentheses, as (x,y,z,r)` |
+| prints | **ok** | byte-identical on the round trip — the format's founding contract (§1.4) |
+| gated | NO | the corpus does not pass with it in |
+
+**Three of five, failing on one rule of shape.** It wrote `spine (0,0,0,1) stone`: one parenthesised
+point where a spine is a CHAIN and needs two or more, and a bare `stone` where the ink is a named
+argument. An earlier run put `ink=stone` on its own line instead. Everything else was right —
+the three headers, the exact subject line, two-space indent, solids nested under their `part`, and
+**no `ground`**, which is the one semantic rule that separates a `prop` from a `creature`.
+
+**What this says about the plan:** the model is one or two rules away from producing corpus-legal
+content with no training at all, on a task whose entire specification fits in 2 269 tokens. That is a
+small gap, and `catzc` labels every attempt — accepted files are positive examples, refused ones come
+with the diagnostic that says why. The scarcest ingredient in a fine-tune is already free here.
+
+### The harness graded itself wrong twice before it graded the model
+
+Recorded because it is the same defect this kit keeps finding, committed by the kit:
+
+1. **It asked whether a marker string was ABSENT and called that success**, so a refusal it did not
+   anticipate was reported as three passing tiers.
+2. **It then searched a 1 200-character TAIL** of the test output for that marker, with the
+   diagnostic sitting above the cut — which is probe K's own failure mode, in the grader.
+
+The fix was to stop guessing the engine's prose and read the **name of the failing test**, which the
+engine owns and changes with itself. Three graders in one day — `MANGLED` for case, `MANGLED` for
+dashes, and this — all narrow in the same direction: **scoring the wording instead of the thing.**
