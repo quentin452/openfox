@@ -76,13 +76,57 @@ exitCode=1, signal=null
 It does not fall back to a partial split. **Partial offload has to be configured**, and the ratio is
 a number somebody chooses: `--gpu 0.6` loaded, meaning roughly 14 of 24 layers resident.
 
-## What is NOT measured
+## Probe G — 118 431 tokens, the whole loaded context
 
-Everything about whether it is any good: probe G (its usable window against the 131 072 it loads),
-and A–K. **The YaRN prior is poor** — 32× from a 4096 native window is exactly the declared-versus-
-usable gap this kit exists to measure — and under the selection rule (a smaller context that is good
-beats a bigger one that hallucinates) it has to beat `qwen3.5-9b-deepseek-v4-flash`, which is already
-measured at 99.7 % of 128 000 and 10 of 11 on A–K.
+```
+gpt-oss-nano: declared 131,072, LOADED 131,072  [Q4_K_M, --gpu max, widened grader, cap 4096]
 
-**What this file establishes is only that it FITS and that it is fast when it does.** Those are the
-two questions that would have killed it, and it survived both.
+    513,802 chars  MANGLED   118431 tokens   107.7s  'NEDEL‑1‑513802'
+
+usable window: 118,431 real tokens — the whole loaded context. Nothing to bisect.
+```
+
+The ceiling rung passed on the first request, so the bisect had no space left to search.
+
+**The prior this file carried was REFUTED, and that is worth more than the number.** 131 072 is YaRN
+**32× from a 4096 native window**, and every note here said to expect the declared-versus-usable gap
+that produces. There is none. An extension that aggressive holding across its whole range is the
+first counter-example this kit has to *"a big declared window is a claim"*.
+
+### The first run said 28.1 %, and the grader was wrong twice in one day
+
+| Run | Grader | Output cap | Usable |
+| --- | --- | --- | --- |
+| first | exact, then case-insensitive | 1024 | **36 807** — 28.1 % |
+| second | + index/depth pair, dashes folded | 4096 | **118 431** — all of it |
+
+**A 3.2× correction, from two independent defects that both under-measure:**
+
+* **The word `NEEDLE` was being graded, and it carries no information.** What identifies a needle is
+  `-{index}-{chars}`, and `chars` is the prompt's own length — a model cannot produce it without
+  having read the line. This model returned `NEDEL‑1‑513802`: right index, right depth, letters
+  dropped from the constant, and **ASCII hyphens replaced by U+2011 NON-BREAKING HYPHEN** (confirmed
+  by codepoint, not by eye). Graded whole that is WRONG; graded on what it means it is a read at the
+  ceiling. `MANGLED` had been widened this same morning for the *case* version of exactly this, on
+  `ai21-jamba-reasoning-3b`, and it cost 24 % there.
+* **Four rungs of ten came back `TRUNCATED` at a 1024 cap** — *"output cap reached before it said
+  anything"*. `gpt-oss` reasons before answering, so it spent the cap on thinking. That verdict
+  measures the runner, which is why the script keeps it apart from the model's failures; the fix is
+  `--max-tokens 4096`, and the setting is recorded here beside the number rather than assumed.
+
+### It reads correctly and transcribes badly, and that is a flag for A–K
+
+Every wrong-looking answer had the **right index and the right depth**. What it damaged was the
+constant it was asked to echo. **A model that corrupts a string it has just read will corrupt a
+filename, a commit hash or a line number**, and none of those has an index/depth pair to fall back
+on. Probe G cannot see that as a failure; A–K is where it would show.
+
+## What is still NOT measured
+
+A–K. Under the selection rule — a smaller context that is good beats a bigger one that hallucinates —
+it has to beat `qwen3.5-9b-deepseek-v4-flash`, which is measured at 99.7 % of 128 000 and **10 of
+11**. On window they are now comparable (118 431 against 127 563) and nano is the faster of the two
+by construction, since it fits entirely on the card. **The whole question is behaviour.**
+
+**What this file establishes:** it FITS, it is FAST, and it READS its whole window. Three questions
+that could each have killed it, and it survived all three.

@@ -140,6 +140,19 @@ def ask(host, model, text, timeout, max_tokens):
 READ = ("PASS", "MANGLED")
 
 
+#: Characters a model substitutes for the ASCII hyphen it actually read. Folded before grading, so
+#: that a typographic habit is not scored as a comprehension failure. U+2010 HYPHEN, U+2011
+#: NON-BREAKING HYPHEN, U+2012 FIGURE DASH, U+2013 EN DASH, U+2014 EM DASH, U+2212 MINUS SIGN.
+DASHES = "‐‑‒–—−"
+
+
+def unmangled(text):
+    """Fold case and the dashes a model reaches for, so grading is about what it read."""
+    for dash in DASHES:
+        text = text.replace(dash, "-")
+    return text.casefold()
+
+
 def probe(host, model, chars, timeout, index, max_tokens):
     marker = f"NEEDLE-{index}-{chars}"
     verdict, tokens, seconds, detail = ask(host, model, needle(chars, marker), timeout, max_tokens)
@@ -153,9 +166,22 @@ def probe(host, model, chars, timeout, index, max_tokens):
         # MANGLED is kept APART from PASS rather than folded into it, because the two are different
         # findings: one model returns what it read, the other returns what it read after mangling
         # it, and a bisect that could not tell them apart would hide the second.
+        #
+        # **And the second widening, 2026-08-08, for the same reason in a new disguise.** The word
+        # `NEEDLE` carries NO information: it is a constant. What identifies the needle is the pair
+        # `-{index}-{chars}`, and `chars` is the prompt's own length, which a model cannot produce
+        # without having read the line. So the pair is the retrieval proof and the word is
+        # transcription. `gpt-oss-nano` returned `NEDEL‑1‑513802` at 118 431 tokens — right index,
+        # right depth, letters dropped from the constant, and ASCII hyphens replaced by U+2011
+        # NON-BREAKING HYPHENs. Graded on the whole string that is WRONG; graded on what it means it
+        # is a read at 90 % of the loaded window. Twice now a narrow grader has cost this kit a
+        # quarter of a model's measured context.
+        body = unmangled(detail)
         if marker in detail:
             verdict = "PASS"
-        elif marker.casefold() in detail.casefold():
+        elif marker.casefold() in body:
+            verdict = "MANGLED"
+        elif f"-{index}-{chars}" in body:
             verdict = "MANGLED"
         else:
             verdict = "WRONG"

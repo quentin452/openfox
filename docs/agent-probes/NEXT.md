@@ -156,16 +156,32 @@ size**, so `gpt-oss-20b` is *"not on this card"* rather than *"not this model"*.
 model that does not fit **dies at 75 % rather than falling back** — partial offload is a ratio
 somebody configures. `results/gpt-oss-nano.md` has the table and the settings beside each number.
 
-**Nothing about its QUALITY is measured yet**, and the prior is poor: 131 072 is YaRN 32× from a 4096
-native window, which is precisely the declared-versus-usable gap probe G exists to find.
+**Probe G: 118 431 tokens — the whole loaded context, nothing to bisect.** The ceiling rung passed on
+the first request. **The prior this file carried was refuted**: 131 072 is YaRN 32× from a 4096
+native window and every note here said to expect a gap. There is none, and it is the first
+counter-example the kit has to *"a big declared window is a claim"*.
+
+**⚠️ The first run said 28.1 %, and the grader was wrong TWICE IN ONE DAY.** It scored
+`NEDEL‑1‑513802` as WRONG — right index, right depth, letters dropped from the constant `NEEDLE`,
+and ASCII hyphens replaced by **U+2011 NON-BREAKING HYPHEN** (checked by codepoint). The word carries
+no information; `-{index}-{chars}` does, and `chars` is the prompt's own length, which nothing can
+produce without reading the line. `MANGLED` had been widened that same morning for the *case* version
+of this on `ai21-jamba-reasoning-3b`, worth 24 % there and **3.2× here**. Four rungs of ten were also
+`TRUNCATED` at the 1024 cap because `gpt-oss` reasons before answering — that verdict measures the
+runner, and `--max-tokens 4096` fixes it. **A narrow grader has now cost this kit a large fraction of
+two different models' measured context; widen it before believing a low number.**
+
+**It reads correctly and transcribes badly, which is a flag for A–K rather than for G.** A model that
+corrupts a string it has just read will corrupt a filename, a commit hash or a line number — none of
+which has an index/depth pair to fall back on.
 
 ## The queue, in order
-1. **Probe G on `squ11z1/gpt-oss-nano`, then A–K.** It fits and it is fast (see above); what is
-   unmeasured is whether it is any good. Its 131 072 is **YaRN 32× from a 4096 native window**, so the
-   declared-versus-usable gap is the whole question — `lfm2.5` reads 66 % of what it loads and the
-   Jamba twins read 100 % and 7.7 % from identical architectures. Under the selection rule it has to
-   beat `qwen3.5-9b-deepseek-v4-flash`: 99.7 % of 128 000, 10 of 11. If probe G comes back short,
-   A–K need not run.
+1. **A–K on `squ11z1/gpt-oss-nano`.** It fits, it is fast, and probe G says it reads its whole
+   loaded window — 118 431 tokens. All three questions that could have killed it are answered, so the
+   only one left is behaviour, and under the selection rule it must beat
+   `qwen3.5-9b-deepseek-v4-flash`'s **10 of 11**. **Watch transcription specifically**: at the ceiling
+   it returned the right index and depth inside a corrupted constant, with a U+2011 hyphen for an
+   ASCII one. Probe K and probe I are where that would bite.
 
 2. **The forged tool result is NOT an OpenFox vulnerability — checked, 2026-08-08.**
    `Jamba-Reasoning-3B-Agent-v1` wrote a complete `<tool_response>` block into its own assistant
