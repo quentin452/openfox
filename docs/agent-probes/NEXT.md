@@ -44,13 +44,16 @@ measured**. `results/ai21labs-jamba2-3b.md` has the numbers and the reproduction
 
 ## The queue, in order
 
-1. **Measure `ai21labs_ai21-jamba2-3b`, G first, then A–K, then L.** It loads 262 144 in 3.3 GB, so
-   it is the only candidate on this box that could work at 256k — but **a window that loads is not a
-   window it can reason across**, and that gap is the whole reason probe G exists (`lfm2.5-2.6b`
-   loads 128 000 and comprehends 84 707). Run `./find-window.py --model ai21labs_ai21-jamba2-3b`
-   first, because everything else is worth less if the usable window is 40k. Then A–K, watching **F**:
-   tool use is documented by AI21 and unmeasured here, and `zai-org/glm-4.6v-flash` is the precedent
-   for a model that cannot finish a tool-calling turn at all.
+1. **A–K on `ai21labs_ai21-jamba2-3b`, then L. Probe G is DONE and it passed at full depth**:
+   **262 055 usable tokens of 262 144 loaded, 100.0 %**, measured 2026-08-08 by
+   `./find-window.py --model ai21labs_ai21-jamba2-3b` (11 requests, ~2 min each at depth).
+   **Every failure was `REFUSED`, never `WRONG`** — the edge found is the server's context limit and
+   no comprehension limit was found below it, which is the opposite failure mode to `lfm2.5-2.6b`
+   (accepts, answers, wrong from 84 707). `results/ai21labs-jamba2-3b.md` has the ladder.
+   **This does not mean it reasons across 262k**: G plants a needle and asks for it back, and
+   retrieval is the cheapest thing a long window can do. A–K are what ask for more — watch **F**,
+   since tool use is documented by AI21, unmeasured here, and `zai-org/glm-4.6v-flash` is the
+   precedent for a model that cannot finish a tool-calling turn at all.
 
 2. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
    runner rather than the model: it returned as soon as `isRunning` went false, which is before the
@@ -104,12 +107,12 @@ measured**. `results/ai21labs-jamba2-3b.md` has the numbers and the reproduction
    The shortlist below came from a chat answer, so **treat every line as a claim until the repo says
    it**: the trap is a plausible spec for a model that does not exist under that name.
 
-   | Candidate | Status of the claim | What decides it here |
-   |---|---|---|
-   | `ai21labs/AI21-Jamba2-3B` | **DOWNLOADED AND LOADED** — the GGUF question is answered: `bartowski/ai21labs_AI21-Jamba2-3B-GGUF`, Q4_K_M, 1.86 GB. See item 1 and `results/ai21labs-jamba2-3b.md` | **Loaded 262 144 = declared, 3 342 MiB of VRAM**, matching the 0.26 GiB cache predicted from `config.json`. Only its honesty and its tool use are still unmeasured |
-   | `Qwen/Qwen3-30B-A3B-Instruct-2507` | **Verified**: 262 144 native, 30.5 B total / 3.3 B active, 128 experts 8 active, 48 layers, 4 KV heads, strong tool calling | **Does not fit this box at its window.** MoE saves compute, not memory: all 30.5 B of weights must be resident (~18 GB at Q4) and the KV cache is a dense 48-layer one, ~96 KiB/token — **24 GiB at 256k, 12 GiB at 128k**. Against 12 GB of VRAM and 31 GB of RAM, 18 + 12 is the whole machine. Worth measuring only at a short window, and then it is competing with the 9 B that already scores 10 of 11 |
-   | "Ministral 3 3B Instruct, 256k" | **Unverified — and the number is suspect.** Mistral's published Ministral 3B is a 128k model | Find the actual repo before planning a run. If the 256k variant does not exist, this line is a hallucinated spec and should be deleted rather than carried |
-   | `amd/Instella-3B-Long-Instruct` | **Unverified** | Same: confirm the repo, the context, and whether it tool-calls at all before it costs a download |
+   | Candidate                          | Status of the claim                                                                                                                                                  | What decides it here                                                                                                                                                                                                                                                                                                                                                                                         |
+   | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+   | `ai21labs/AI21-Jamba2-3B`          | **DOWNLOADED AND LOADED** — the GGUF question is answered: `bartowski/ai21labs_AI21-Jamba2-3B-GGUF`, Q4_K_M, 1.86 GB. See item 1 and `results/ai21labs-jamba2-3b.md` | **Loaded 262 144 = declared, 3 342 MiB of VRAM**, matching the 0.26 GiB cache predicted from `config.json`. Only its honesty and its tool use are still unmeasured                                                                                                                                                                                                                                           |
+   | `Qwen/Qwen3-30B-A3B-Instruct-2507` | **Verified**: 262 144 native, 30.5 B total / 3.3 B active, 128 experts 8 active, 48 layers, 4 KV heads, strong tool calling                                          | **Does not fit this box at its window.** MoE saves compute, not memory: all 30.5 B of weights must be resident (~18 GB at Q4) and the KV cache is a dense 48-layer one, ~96 KiB/token — **24 GiB at 256k, 12 GiB at 128k**. Against 12 GB of VRAM and 31 GB of RAM, 18 + 12 is the whole machine. Worth measuring only at a short window, and then it is competing with the 9 B that already scores 10 of 11 |
+   | "Ministral 3 3B Instruct, 256k"    | **Unverified — and the number is suspect.** Mistral's published Ministral 3B is a 128k model                                                                         | Find the actual repo before planning a run. If the 256k variant does not exist, this line is a hallucinated spec and should be deleted rather than carried                                                                                                                                                                                                                                                   |
+   | `amd/Instella-3B-Long-Instruct`    | **Unverified**                                                                                                                                                       | Same: confirm the repo, the context, and whether it tool-calls at all before it costs a download                                                                                                                                                                                                                                                                                                             |
 
    **The order that wastes the least: confirm the GGUF, compute the cache from `config.json`, then
    download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
@@ -124,9 +127,9 @@ measured**. `results/ai21labs-jamba2-3b.md` has the numbers and the reproduction
    whether the arithmetic is there to build on before any of this is worth doing.
 
 10. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
-   another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
-   loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
-   records the machine for exactly this reason.
+    another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
+    loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
+    records the machine for exactly this reason.
 
 ## How to run one without producing a wrong number
 
