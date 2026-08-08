@@ -26,9 +26,28 @@ signature.** You are not grading style. You are comparing a number, a path, or a
 |---|---|
 | `PROBES.md` | The probes themselves. One per turn, in a fresh session. |
 | `ground-truth.sh` | Generates the answer key for whatever repository you point it at, plus the needle files probe G needs. |
+| `lmstudio.sh` | Drives LM Studio from a terminal: load a model at a stated context and offload, and report what is **loaded** rather than what is configured. |
+| `results/` | One file per model measured: what it is, what it costs to load, and how it answered. |
 
 The probes are repository-agnostic; the answer key is not. Regenerate the key whenever you change
 the target repository or it changes under you.
+
+## Pinning the thing under test
+
+A result is about a model **on a machine, at a context, with the cache somewhere**. Change any of
+the three and the numbers move — one of them by a factor of six. So pin them before measuring
+rather than reading them off a settings page afterwards:
+
+```bash
+./lmstudio.sh status                       # declared vs loaded, and what it costs in VRAM
+./lmstudio.sh load <model> 126720 max      # explicit context, full GPU offload
+./lmstudio.sh estimate <model>             # weights only — the KV cache is what decides the fit
+```
+
+**Declared is not loaded.** LM Studio fits the KV cache to available VRAM and loads a smaller window
+than the model advertises, without saying so: two of three models measured here declare 262 144 and
+load 126 720. `status` prints both numbers side by side because the gap between them is where a
+whole afternoon went.
 
 ## Running it
 
