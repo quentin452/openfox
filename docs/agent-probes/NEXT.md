@@ -45,9 +45,32 @@ run a shell loop, and every wrong answer it gave was assembled from the system p
 list. **A window that loads is not a window a model reasons across, and neither one predicts whether
 it can act.** `results/ai21labs-jamba2-3b.md` has both tables.
 
+**`ai21labs/AI21-Jamba-Reasoning-3B` is measured, 2026-08-08, and it is the cleanest comparison the
+kit has made.** Its `config.json` matches `ai21labs_ai21-jamba2-3b`'s on every field that decides
+cost — 28 layers, 2 attention, 1 KV head, 262 144 — and both load their full declared window. The
+twin reads **100 %** of it. This one reads **6.3 %**, and where the twin's failures were the server
+refusing, this one's are the model answering wrong. **Post-training, not architecture, decided the
+usable window.** A–K: 2 pass, 7 fail, with pathologies of its own — invented URLs that it then
+fetches, empty responses after doing the reading, and a parent that contradicted its own sub-agent.
+
 ## The queue, in order
 
-1. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
+1. **Re-run probe G on `ai21-jamba-reasoning-3b` with the fixed grader.** Measured 2026-08-08 at
+   **6.3 % of what it loads** — 16 403 tokens of 262 144 — but the run predates `MANGLED`: at
+   16 675 tokens it returned the marker LOWERCASED and the case-sensitive grader scored it WRONG.
+   The honest edge is between ~16.7 k and ~33.7 k, and one re-run closes it. **The finding stands
+   either way and it is the sharpest one this kit has produced**: this model's `config.json` is
+   identical to `ai21labs_ai21-jamba2-3b`'s on every field, and the twin reads 100 % of the same
+   loaded window while failing only at the server's refusal. Same shape, different post-training,
+   a fortieth of the usable context. A–K: **2 pass, 7 fail** — it invents URLs and fetches them,
+   returns empty responses after reading the file, and contradicts its own sub-agent.
+   `results/ai21-jamba-reasoning-3b.md` has both tables.
+
+2. **Re-run probe G on `lfm2.5-2.6b` too**, for the same reason: its recorded WRONG depths predate
+   `MANGLED`, and a marker returned in the wrong case would have scored as a comprehension failure
+   there as well. Its edge of 84 707 can only move up.
+
+3. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
    except L.** Probe G: **262 055 usable tokens of 262 144, 100 %**, every failure above it the
    server's refusal and never a wrong answer. A–K: **2 pass, 7 fail** — it invented a tool name
    rather than report one missing, ran the same failing command 23 times, said a file it had never
@@ -60,19 +83,19 @@ it can act.** `results/ai21labs-jamba2-3b.md` has both tables.
    model. L is still worth running on it (cheap, no repo, no tools) to see whether the arithmetic
    holds up where the agency does not.
 
-2. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
+4. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
    runner rather than the model: it returned as soon as `isRunning` went false, which is before the
    final text commits, so every answer landed against the following question. Fixed — but the fix is
    unproven, and C is the probe the whole kit exists for.
 
-3. **The two questions the rules exist to answer, and they are one run.** Does the model call
+5. **The two questions the rules exist to answer, and they are one run.** Does the model call
    `load_skill("regles-agent")` before working on a repository, unprompted — the instruction is
    deliberately unconditional — and once loaded, does it quote the skill or invent it? The second has
    a computed key: ask for the `git add -A` rule, which is in `SKILL.md` and **not** in the system
    prompt, and for a branch-naming rule, which is in neither. Inventing the second is the failure
    that matters.
 
-4. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
+6. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
    `qwen3.5-9b-deepseek-v4-flash`, once with OpenFox's global instructions in place and once cleared:
 
    ```bash
@@ -89,17 +112,17 @@ it can act.** `results/ai21labs-jamba2-3b.md` has both tables.
    instructions are decoration and belong in the skill instead — a finding worth more than a green
    run.
 
-5. **Probe K with RTK toggled, now that one half is measured.** With RTK on, `lfm2.5-2.6b` answered
+7. **Probe K with RTK toggled, now that one half is measured.** With RTK on, `lfm2.5-2.6b` answered
    205 against a true 17 587. What is missing is the same probe with the toggle **off**: the gap
    between the two answers is what the filter costs in correctness, against the tokens it saves. A
    model that gives the same number both times is one that counted instead of reading.
 
-6. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
+8. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
    limit — loaded context 126 720, run stopped at 64 000. But it took 317 s at 32 000 where the 9 B
    takes 45 s, so what decides whether it is usable is tokens per second at a fixed context. Measure
    that first. **It also JIT-loads at 8.6 GiB** when anything addresses it, so unload it afterwards.
 
-7. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
+9. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
    three arithmetic questions with exact answers: a yaw-rotated box's AABB, a triangle's unit normal
    and area, a silhouette width. **It exists because the point of this kit is a `.catz` shape genre
    that does not exist yet**, and a model that cannot normalise a cross product cannot author or
@@ -108,7 +131,7 @@ it can act.** `results/ai21labs-jamba2-3b.md` has both tables.
    whether the small end of the range is usable for geometry content at all. Record whether the
    answer was computed, tool-called, or asserted; the third is untrustworthy even when right.
 
-8. **The long-context candidates, and what has to be checked before downloading any of them.**
+10. **The long-context candidates, and what has to be checked before downloading any of them.**
    The shortlist below came from a chat answer, so **treat every line as a claim until the repo says
    it**: the trap is a plausible spec for a model that does not exist under that name.
 
@@ -123,7 +146,7 @@ it can act.** `results/ai21labs-jamba2-3b.md` has both tables.
    download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
    it is the one worth the check.
 
-9. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
+11. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
    scores 8/1/2 and loads its full 128 000. Its measured gap is **comprehension**, not window: it
    uses 66.2 % of what it loads, where the 9 B uses 99.7 %. Fine-tuning changes behaviour — refusal
    phrasing, tool discipline, format adherence — and **a fine-tune does not extend the window it can
@@ -131,7 +154,7 @@ it can act.** `results/ai21labs-jamba2-3b.md` has both tables.
    the probes it fails on behaviour, and the wrong one for the 84 707 ceiling. Probe L (item 6) says
    whether the arithmetic is there to build on before any of this is worth doing.
 
-10. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
+12. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
     another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
     loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
     records the machine for exactly this reason.
