@@ -53,6 +53,14 @@ refusing, this one's are the model answering wrong. **Post-training, not archite
 usable window.** A–K: 2 pass, 7 fail, with pathologies of its own — invented URLs that it then
 fetches, empty responses after doing the reading, and a parent that contradicted its own sub-agent.
 
+**A community fine-tune was tested and it separates the two purchases, 2026-08-08.**
+`cybertruck32489/Jamba-Reasoning-3B-Agent-v1` carries an empty auto-generated card, so running it
+was the only way to learn what it holds: its usable window is **85 452 tokens against its base's
+16 403 — 5.2×** — and it scores **1 of 9** on A–K where the base scored 2. Someone trained long
+context and wrote "Agent" on the box. It also **fabricated a `<tool_response>` block** in its own
+output, at the exact shape the harness produces, with an invented exit code — see item 3.
+`results/jamba-reasoning-3b-agent-v1.md`.
+
 ## The queue, in order
 
 1. **Re-run probe G on `ai21-jamba-reasoning-3b` with the fixed grader.** Measured 2026-08-08 at
@@ -70,7 +78,20 @@ fetches, empty responses after doing the reading, and a parent that contradicted
    `MANGLED`, and a marker returned in the wrong case would have scored as a comprehension failure
    there as well. Its edge of 84 707 can only move up.
 
-3. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
+3. **Check whether OpenFox can be fed a forged tool result.** `Jamba-Reasoning-3B-Agent-v1` wrote
+   a complete `<tool_response>` block into its own assistant text — right shape, invented exit code
+   — for a command it never ran. **If the server parses tool results out of the assistant stream
+   rather than from its own dispatcher, a model can forge evidence**, and every probe that grades a
+   transcript is then grading something the model wrote. This is a code question, not a model one,
+   and it outranks the rest of this queue because it decides whether the transcripts this kit reads
+   can be trusted at all.
+
+4. **Add a per-turn watchdog to the runner.** Probe C hung for twelve minutes with
+   `isRunning: true` while LM Studio was IDLE and the assistant message was empty — a model that
+   leaks control tokens can stall a turn that has finished. `run-probe.py` waits out its whole
+   timeout for that; the kit should report `STALLED` and move on.
+
+5. **`ai21labs_ai21-jamba2-3b` is MEASURED and it is not an agent. Nothing left to run on it
    except L.** Probe G: **262 055 usable tokens of 262 144, 100 %**, every failure above it the
    server's refusal and never a wrong answer. A–K: **2 pass, 7 fail** — it invented a tool name
    rather than report one missing, ran the same failing command 23 times, said a file it had never
@@ -83,19 +104,19 @@ fetches, empty responses after doing the reading, and a parent that contradicted
    model. L is still worth running on it (cheap, no repo, no tools) to see whether the arithmetic
    holds up where the agency does not.
 
-4. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
+6. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
    runner rather than the model: it returned as soon as `isRunning` went false, which is before the
    final text commits, so every answer landed against the following question. Fixed — but the fix is
    unproven, and C is the probe the whole kit exists for.
 
-5. **The two questions the rules exist to answer, and they are one run.** Does the model call
+7. **The two questions the rules exist to answer, and they are one run.** Does the model call
    `load_skill("regles-agent")` before working on a repository, unprompted — the instruction is
    deliberately unconditional — and once loaded, does it quote the skill or invent it? The second has
    a computed key: ask for the `git add -A` rule, which is in `SKILL.md` and **not** in the system
    prompt, and for a branch-naming rule, which is in neither. Inventing the second is the failure
    that matters.
 
-6. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
+8. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
    `qwen3.5-9b-deepseek-v4-flash`, once with OpenFox's global instructions in place and once cleared:
 
    ```bash
@@ -112,17 +133,17 @@ fetches, empty responses after doing the reading, and a parent that contradicted
    instructions are decoration and belong in the skill instead — a finding worth more than a green
    run.
 
-7. **Probe K with RTK toggled, now that one half is measured.** With RTK on, `lfm2.5-2.6b` answered
+9. **Probe K with RTK toggled, now that one half is measured.** With RTK on, `lfm2.5-2.6b` answered
    205 against a true 17 587. What is missing is the same probe with the toggle **off**: the gap
    between the two answers is what the filter costs in correctness, against the tokens it saves. A
    model that gives the same number both times is one that counted instead of reading.
 
-8. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
+10. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
    limit — loaded context 126 720, run stopped at 64 000. But it took 317 s at 32 000 where the 9 B
    takes 45 s, so what decides whether it is usable is tokens per second at a fixed context. Measure
    that first. **It also JIT-loads at 8.6 GiB** when anything addresses it, so unload it afterwards.
 
-9. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
+11. **Probe L on every model already measured** — the new capability probe (`PROBES.md` §L). It is
    three arithmetic questions with exact answers: a yaw-rotated box's AABB, a triangle's unit normal
    and area, a silhouette width. **It exists because the point of this kit is a `.catz` shape genre
    that does not exist yet**, and a model that cannot normalise a cross product cannot author or
@@ -131,7 +152,7 @@ fetches, empty responses after doing the reading, and a parent that contradicted
    whether the small end of the range is usable for geometry content at all. Record whether the
    answer was computed, tool-called, or asserted; the third is untrustworthy even when right.
 
-10. **The long-context candidates, and what has to be checked before downloading any of them.**
+12. **The long-context candidates, and what has to be checked before downloading any of them.**
    The shortlist below came from a chat answer, so **treat every line as a claim until the repo says
    it**: the trap is a plausible spec for a model that does not exist under that name.
 
@@ -146,7 +167,7 @@ fetches, empty responses after doing the reading, and a parent that contradicted
    download.** Jamba2-3B is the only candidate whose architecture makes 256k cheap on this card, so
    it is the one worth the check.
 
-11. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
+13. **Or fine-tune `lfm2.5-2.6b` instead — and note what that would and would not fix.** It already
    scores 8/1/2 and loads its full 128 000. Its measured gap is **comprehension**, not window: it
    uses 66.2 % of what it loads, where the 9 B uses 99.7 %. Fine-tuning changes behaviour — refusal
    phrasing, tool discipline, format adherence — and **a fine-tune does not extend the window it can
@@ -154,7 +175,7 @@ fetches, empty responses after doing the reading, and a parent that contradicted
    the probes it fails on behaviour, and the wrong one for the 84 707 ceiling. Probe L (item 6) says
    whether the arithmetic is there to build on before any of this is worth doing.
 
-12. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
+14. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
     another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
     loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
     records the machine for exactly this reason.
