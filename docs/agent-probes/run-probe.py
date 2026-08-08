@@ -113,6 +113,16 @@ def render(message):
     kind = message.get("type") or message.get("role") or "?"
     lines = []
 
+    # Tool calls arrive as a list on the assistant message, each with its own result. Printing them
+    # is the point: probes A, C, E and F are graded on whether a tool ran at all, and on whether the
+    # parent's account matches what came back.
+    for call in message.get("toolCalls") or []:
+        args = json.dumps(call.get("arguments"), ensure_ascii=False)[:160]
+        result = call.get("result") or {}
+        output = result.get("output")
+        size = f"{len(output)} chars" if isinstance(output, str) else "no output"
+        lines.append(f"  [tool] {call.get('name')} {args} -> {size}")
+
     name = message.get("name") or message.get("toolName") or (message.get("tool") or {}).get("name")
     if name:
         args = message.get("args") or message.get("input") or (message.get("tool") or {}).get("args")
@@ -186,6 +196,17 @@ def main():
         seen_running = seen_running or running
         elapsed = time.time() - started
         if seen_running and not running:
+            # `isRunning` flips before the final assistant text is committed, so returning here
+            # captures the turn without its answer — and the answer then shows up at the top of the
+            # NEXT probe's output, which silently misaligns a whole run. Measured: an eleven-probe
+            # session where every answer was attributed to the following question.
+            for _ in range(5):
+                last = state["messages"][-1] if state["messages"] else {}
+                text = last.get("content")
+                if last.get("role") == "assistant" and isinstance(text, str) and text.strip():
+                    break
+                time.sleep(2)
+                state = call(host, "GET", f"/api/sessions/{session_id}?full=true")
             break
         if elapsed > args.timeout:
             print(f"TIMEOUT after {elapsed:.0f}s — a client timeout is not a model limit (PROBES.md §G)")
