@@ -28,6 +28,7 @@ signature.** You are not grading style. You are comparing a number, a path, or a
 | `ground-truth.sh` | Generates the answer key for whatever repository you point it at, plus the needle files probe G needs. |
 | `lmstudio.sh` | Drives LM Studio from a terminal: load a model at a stated context and offload, and report what is **loaded** rather than what is configured. |
 | `results/` | One file per model measured: what it is, what it costs to load, and how it answered. |
+| `NEXT.md` | **What to run next.** The only queue for this work — a second one would diverge from it. |
 
 The probes are repository-agnostic; the answer key is not. Regenerate the key whenever you change
 the target repository or it changes under you.
