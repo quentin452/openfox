@@ -20,28 +20,37 @@ failure this kit was written for, caught in the act for the first time.
 repeats one call until `max_tokens` and nothing dispatches. Measured from both ends in
 `results/zai-org-glm-4.6v-flash.md`; qwen does the same request cleanly four times out of four.
 
-Not measured: **A–K on any model but `lfm2.5-2.6b`.**
+**`qwen3.5-9b-deepseek-v4-flash` is measured end to end, 2026-08-08** — **10 of 11**, with
+`global_instructions` in place. Window 127 563 of 128 000 loaded (**99.7 %**), and every refusal
+above it is the server's in under three seconds: this model hits the context limit, never a
+comprehension limit. Only probe K fails, and **not in the way K tests** — it counted rather than
+reading a truncated list, and answered 17 629 against a key of 17 587 by globbing a different scope.
+`results/qwen3.5-9b-deepseek-v4-flash.md` has the table.
+
+**The queue's own prediction was refuted, which is the finding.** This file said to expect B, C and E
+to fail, because they are the class that produced the kit. All three passed. The evidence they were
+named on came from an _unstructured_ session against the same model, so what changed is the harness,
+the mode, or the instructions — and one arm cannot say which. Item 3 below is now the measurement
+that matters most.
+
+Not measured: **A–K on `prism-ml/bonsai-27b` or `zai-org/glm-4.6v-flash`** (the latter cannot
+tool-call at all, see its result file).
 
 ## The queue, in order
 
-1. **Full probe set A–K on `qwen3.5-9b-deepseek-v4-flash`**, the baseline: it is the one that
-   tool-calls reliably and the model `global-instructions.md` was written against. Expect B, C and E
-   to be the ones it fails — they are the class that produced this kit.
-   `./run-probe.py --repo <target> --model qwen3.5-9b-deepseek-v4-flash --mode planner "<probe>"`.
-
-2. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
+1. **Re-run probe C on `lfm2.5-2.6b`.** It is the only one still unscored, and the reason was the
    runner rather than the model: it returned as soon as `isRunning` went false, which is before the
    final text commits, so every answer landed against the following question. Fixed — but the fix is
    unproven, and C is the probe the whole kit exists for.
 
-3. **The two questions the rules exist to answer, and they are one run.** Does the model call
+2. **The two questions the rules exist to answer, and they are one run.** Does the model call
    `load_skill("regles-agent")` before working on a repository, unprompted — the instruction is
    deliberately unconditional — and once loaded, does it quote the skill or invent it? The second has
    a computed key: ask for the `git add -A` rule, which is in `SKILL.md` and **not** in the system
    prompt, and for a branch-naming rule, which is in neither. Inventing the second is the failure
    that matters.
 
-4. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
+3. **The A/B that says whether the rules do anything.** Re-run **B, C and E** on
    `qwen3.5-9b-deepseek-v4-flash`, once with OpenFox's global instructions in place and once cleared:
 
    ```bash
@@ -50,21 +59,25 @@ Not measured: **A–K on any model but `lfm2.5-2.6b`.**
    python3 scripts/openfox-config/apply_global_instructions.py --apply   # then run them again
    ```
 
-   The unstructured session of 2026-08-08 failed all three without them. **That is the before.** If
-   the after is identical, the instructions are decoration and belong in the skill instead — a
-   finding worth more than a green run.
+   **The _after_ arm is already measured**: the A–K run of 2026-08-08 had `global_instructions`
+   applied and B, C and E all passed. So what is missing is the **cleared** arm, run the same way —
+   through `run-probe.py`, in planner mode, one fresh session per probe. That matters, because the
+   only _before_ on record is an unstructured browser session, and comparing it to a runner session
+   compares two harnesses as much as two instruction sets. If the cleared arm passes too, the
+   instructions are decoration and belong in the skill instead — a finding worth more than a green
+   run.
 
-5. **Probe K with RTK toggled, now that one half is measured.** With RTK on, `lfm2.5-2.6b` answered
+4. **Probe K with RTK toggled, now that one half is measured.** With RTK on, `lfm2.5-2.6b` answered
    205 against a true 17 587. What is missing is the same probe with the toggle **off**: the gap
    between the two answers is what the filter costs in correctness, against the tokens it saves. A
    model that gives the same number both times is one that counted instead of reading.
 
-6. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
+5. **`prism-ml/bonsai-27b`: throughput, not depth.** Its ladder stopped at a client timeout, not a
    limit — loaded context 126 720, run stopped at 64 000. But it took 317 s at 32 000 where the 9 B
    takes 45 s, so what decides whether it is usable is tokens per second at a fixed context. Measure
    that first. **It also JIT-loads at 8.6 GiB** when anything addresses it, so unload it afterwards.
 
-7. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
+6. **Re-measure a window whenever the machine changes.** A new LM Studio version, a driver update,
    another card, or a different `--gpu` ratio all move it. `lmstudio.sh status` prints declared and
    loaded side by side, `find-window.py` re-runs the whole of probe G in one command, and `results/`
    records the machine for exactly this reason.
