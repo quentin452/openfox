@@ -3268,6 +3268,13 @@ export function setupSignalShutdown(
     }, 3000)
     forceExitTimer.unref?.()
 
+    if (process.stdin.isTTY && typeof process.stdin.setRawMode === 'function') {
+      try {
+        process.stdin.setRawMode(false)
+        process.stdin.pause()
+      } catch {}
+    }
+
     await handle.close()
     proc.removeListener('SIGINT', sigintListener)
     proc.removeListener('SIGTERM', sigtermListener)
